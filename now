@@ -2,7 +2,8 @@
 # from https://news.ycombinator.com/item?id=7411120
 
 # Modify this to change where the now file is stored.
-NOW_FILE="$HOME/.now"
+NOW_FILE="$HOME/Dropbox/.now"
+# NOW_FILE="$HOME/.now" # store in home directory
 NOW_FORMAT='%F %T'
 if [[ ! -z "$@" ]] # don't add empty tasks 
 then
