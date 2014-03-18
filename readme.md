@@ -27,6 +27,12 @@ Advantages of now
 
 Because `now` is very simple, it's easy to understand, easy to use, and easy to correct. If you make a mistake, just correct the `.now` file directly. Add entries. Delete entries. Change times. It's easy when all you're dealing with is a text file.
 
+Installation
+---
+
+To install, copy the files now and nowtss to a directory in your path.
+
+
 Thanks
 ------
 
