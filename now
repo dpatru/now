@@ -1,0 +1,22 @@
+#!/bin/bash
+# from https://news.ycombinator.com/item?id=7411120
+NOW_FORMAT='%F %T'
+NOW_FILE="$HOME/.now"
+echo $(date +"$NOW_FORMAT") - "$@" >> $NOW_FILE
+tail $NOW_FILE | nowtss
+
+
+# # from https://news.ycombinator.com/item?id=7411120
+# export NOW_FORMAT='%F %T'
+# export NOW_FILE="$HOME/.now"
+# now() {
+#     if [ -e $NOW_FILE ] &&
+#        last_line=$(tail -n1 $NOW_FILE | cut -d " " -f 1,2) &&
+#        time0=$(date -j -f "$NOW_FORMAT" "$last_line" "+%s") && 
+#        time1=$(date -j "+%s") &&
+#        et=$(date -ju -f "%s" "$(( $time1 - $time0 ))" "+%T")
+#     then echo "ET $et" >> $NOW_FILE
+#     fi
+#     echo $(date +"$NOW_FORMAT") - "$@" >> $NOW_FILE
+#     tail -n11 $NOW_FILE
+# }

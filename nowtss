@@ -1,0 +1,30 @@
+#!/usr/bin/perl
+
+# Given a list of timestamps and tasks, 
+# ts1 - task1
+# ts2 - task2
+# ts3 - task3
+
+# We want to print the elapsed times starting from the second line.
+# ts1 - (ts2-ts1) - task1
+# ts2 - (ts3-ts2) - task2
+# ts3 - task3
+
+my $t1 = -1;
+my $prev_line = ""; 
+while (<>) { # do for each line
+  my $t2 = `date -jf '%F %T' "$_" '+%s' 2> /dev/null`;
+  # if this is the first line, don't print it yet 
+  # because we don't yet know the elapsed time
+  if ($t1 > 0) { 
+    $seconds = $t2 - $t1;
+    $et = `date -juf '%s' "$seconds" '+%T'`;
+    chomp ($et);
+    $prev_line =~ s/ - / - ET $et - /;
+    print $prev_line; #  "ET $et - $_"; 
+  }
+  $t1 = $t2;
+  $prev_line = $_;
+}
+print "$prev_line";
+
