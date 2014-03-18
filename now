@@ -1,8 +1,13 @@
 #!/bin/bash
 # from https://news.ycombinator.com/item?id=7411120
-NOW_FORMAT='%F %T'
+
+# Modify this to change where the now file is stored.
 NOW_FILE="$HOME/.now"
-echo $(date +"$NOW_FORMAT") - "$@" >> $NOW_FILE
+NOW_FORMAT='%F %T'
+if [[ ! -z "$@" ]] # don't add empty tasks 
+then
+  echo $(date +"$NOW_FORMAT") - "$@" >> $NOW_FILE
+fi
 tail $NOW_FILE | nowtss
 
 
