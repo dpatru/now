@@ -17,7 +17,7 @@ while (<>) { # do for each line
   # if this is the first line, don't print it yet 
   # because we don't yet know the elapsed time
   if ($t1 > 0) { 
-    $seconds = $t2 - $t1;
+    $seconds = $t2 - $t1; 
     $et = `date -juf '%s' "$seconds" '+%T'`;
     chomp ($et);
     $prev_line =~ s/ - / - ET $et - /;
@@ -26,5 +26,11 @@ while (<>) { # do for each line
   $t1 = $t2;
   $prev_line = $_;
 }
-print "$prev_line";
+# print the last line too, relative to the current time
+my $t2 = `date -j '+%s' 2> /dev/null`;
+$seconds = $t2 - $t1; 
+$et = `date -juf '%s' "$seconds" '+%T'`;
+chomp ($et);
+$prev_line =~ s/ - / - ET $et - /;
+print $prev_line; #  "ET $et - $_"; print "$prev_line";
 
