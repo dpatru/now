@@ -27,7 +27,7 @@ while (<>) { # do for each line
   $prev_line = $_;
 }
 # print the last line too, relative to the current time
-my $t2 = `date -j '+%s' 2> /dev/null`;
+my $t2 = `date -j '+%s' 2> /dev/null`; # use the current time
 $seconds = $t2 - $t1; 
 $et = `date -juf '%s' "$seconds" '+%T'`;
 chomp ($et);
