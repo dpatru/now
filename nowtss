@@ -10,6 +10,23 @@
 # ts2 - (ts3-ts2) - task2
 # ts3 - task3
 
+sub seconds2timestring {
+  my $seconds = $_[0];
+  my $hours = int($seconds / 3600);
+  my $seconds = $seconds % 3600;
+  my $minutes = int($seconds / 60);
+  $seconds = $seconds % 60;
+  return sprintf("%d:%02d:%02d", $hours, $minutes, $seconds);
+}
+
+sub print_line {
+  my $et_seconds = $_[0];
+  my $line = $_[1]; 
+  my $timestring = seconds2timestring($et_seconds);
+  $line =~ s/ - / - ET $timestring - /;
+  print $line; #  "ET $et - $_"; 
+} 
+ 
 my $t1 = -1;
 my $prev_line = ""; 
 while (<>) { # do for each line
@@ -17,20 +34,13 @@ while (<>) { # do for each line
   # if this is the first line, don't print it yet 
   # because we don't yet know the elapsed time
   if ($t1 > 0) { 
-    $seconds = $t2 - $t1; 
-    $et = `date -juf '%s' "$seconds" '+%T'`;
-    chomp ($et);
-    $prev_line =~ s/ - / - ET $et - /;
-    print $prev_line; #  "ET $et - $_"; 
+    print_line($t2 - $t1, $prev_line);
   }
   $t1 = $t2;
   $prev_line = $_;
 }
 # print the last line too, relative to the current time
-my $t2 = `date -j '+%s' 2> /dev/null`; # use the current time
-$seconds = $t2 - $t1; 
-$et = `date -juf '%s' "$seconds" '+%T'`;
-chomp ($et);
-$prev_line =~ s/ - / - ET $et - /;
-print $prev_line; #  "ET $et - $_"; print "$prev_line";
-
+if ($t1 >= 0) {
+  my $t2 = `date -j '+%s' 2> /dev/null`; # use the current time
+  print_line($t2 - $t1, $prev_line);
+}
