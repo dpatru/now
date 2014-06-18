@@ -31,10 +31,21 @@ Because `now` is very simple, it's easy to understand, easy to use, and easy to 
 Installation
 ---
 
-To install, copy the files `now` and `nowtss` and `reportnow` to a directory in your path.
+To install, link the files `now`, `nowtss`, `lastsection.pl`,
+`nowdays` and `nowreport` to a directory in your path.
+
 To enable autocompletion open a shell and type:
 
     > echo "source path/to/_now.sh" >> ~/.bash_profile
+
+Modify the file `_now.sh` to reflect your projects directory.
+
+Todo
+---
+
+Add estimation to allow for evidence-based estimates. See
+http://www.joelonsoftware.com/items/2007/10/26.html.
+
 
 Thanks
 ------
