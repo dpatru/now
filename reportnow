@@ -25,6 +25,7 @@ $et =~ s/ET (\d+):(\d+)/ 60 * $1 + $2 /e;
 # print $text;
 my @tags = split /:/, $text;
 # print join('-:-', @tags);
+$report{''} += $et; 
 for (my $i = 0; $i <= $#tags; $i++) {
   my $k = join(':', @tags[0..$i]);
   $report{$k} += $et; 
