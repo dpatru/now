@@ -1,0 +1,9 @@
+* evidence based scheduling
+
+- use -s to make it really easy to add arguments. 
+- convert now to perl file?
+- format tasks as task followed by indented lines for completions.
+- don't autocomplete "finished" tasks unless flagged.
+- new utility to create velocity file.
+- new utility to create simulations from velocity file.
+- new utility to simulate a task list.
