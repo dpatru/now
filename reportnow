@@ -1,6 +1,6 @@
 #!/usr/bin/perl -lan
 # expects output from nowtss
-# prints report
+# prints report every time a new date is encountered.
 
 BEGIN { my %report = (); my $date; my $minutes; }
 if ($date && $date ne $F[0]) { 
