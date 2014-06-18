@@ -1,0 +1,33 @@
+#!/usr/bin/perl -lan
+# expects output from nowtss
+# prints report everytime a blank line is encountered.
+
+BEGIN { my %report = (); my $date; my $minutes; }
+if ($_ eq '') {
+  print "\nReport for $date"; 
+  foreach my $k (sort keys %report) {
+    my $t = $report{$k};
+    my $h = int($t / 60);
+    my $m = $t % 60; 
+    printf("$k: $h:%02d\n", $m);
+  }
+  %report = ();
+  # print "";
+}
+print; 
+$date = $F[0];
+my ($time, $et, $text) = split / - /;
+# print $date;
+# print $time; 
+# print $et;
+$et =~ s/ET (\d+):(\d+)/ 60 * $1 + $2 /e;
+# print $et;
+# print $text;
+my @tags = split /:/, $text;
+# print join('-:-', @tags);
+for (my $i = 0; $i <= $#tags; $i++) {
+  my $k = join(':', @tags[0..$i]);
+  $report{$k} += $et; 
+}
+# print '';
+    

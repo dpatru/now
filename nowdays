@@ -1,0 +1,12 @@
+#!/usr/bin/perl -lan
+# expects output from nowtss
+# prints report
+
+BEGIN { my %report = (); my $date; my $minutes; }
+if ($date && $date ne $F[0]) {
+  print '';
+}
+print;
+$date = $F[0];
+
+END { print ''; }
