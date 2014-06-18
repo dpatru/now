@@ -1,8 +1,10 @@
 #!/usr/bin/perl -sn
 
+# display the last n sections of stdin. A section is a blank line.
+
 BEGIN { 
   if (! $n || $n < 1 ) {
-    die "usage: $ARGV[0] -n=3";
+    die "usage: $ARGV[0] -n=3: Display the last n sections of stdin. A section is a blank line.";
   } 
   # print $n;
   my @sections;
