@@ -20,7 +20,8 @@ Whenever you start a new task, for example, working for client Miller, just type
 
 The `now` script will record this task along with a timestamp in the file `.now` in your home directory. The effect is a build a chronological list of the things you've worked on.
 
-The script `nowtss` takes a timestamped list of tasks and adds elapsed time. As a convenience, `now` shows the output of nowtss on the tail of the `.now` file each time it is called.
+The script `nowtss` takes a timestamped list of tasks and adds elapsed
+time. As a convenience, `now` shows the output of `reportnow` each time it is called.
 
 Advantages of now
 ---------------
