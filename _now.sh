@@ -1,3 +1,6 @@
+
+# run to enable autocompletion.
+
 _now() 
 {
     local cur prev opts
@@ -25,4 +28,3 @@ _now()
 }
 # complete -P \" -S \" -F _now now
 complete -o nospace -F _now now
-

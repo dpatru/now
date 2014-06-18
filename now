@@ -9,5 +9,4 @@ if [[ ! -z "$@" ]] # don't add empty tasks
 then
   echo $(date +"$NOW_FORMAT") - "$@" >> $NOW_FILE
 fi
-tail $NOW_FILE | nowtss
-
+cat $NOW_FILE | nowtss | reportnow | tail -n80

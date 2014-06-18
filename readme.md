@@ -30,8 +30,10 @@ Because `now` is very simple, it's easy to understand, easy to use, and easy to 
 Installation
 ---
 
-To install, copy the files `now` and `nowtss` to a directory in your path.
+To install, copy the files `now` and `nowtss` and `reportnow` to a directory in your path.
+To enable autocompletion open a shell and type:
 
+    > echo "source path/to/_now.sh" >> ~/.bash_profile
 
 Thanks
 ------

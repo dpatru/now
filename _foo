@@ -18,20 +18,8 @@ _foo()
 	line="${COMP_WORDS[@]:1}"
 	pline="${COMP_WORDS[@]:1:pCOMP_CWORD}"
         read -d '' -r -a lines < $projects
-        # COMPREPLY=( $(compgen -W "$(printf "%q\n" "${lines[@]}" | perl -pe "s/(['"'" ])/\\$1/g')" -- ${cur}) )
-	# COMPREPLY=( $(compgen -W "$(printf "%q\n" "${lines[@]}")" -- ${cur}) )
-	# COMPREPLY=( $(compgen -W "$(printf "%q\n" "${lines[@]}")" -- "${cur}") )
-	# COMPREPLY=( $(compgen -W "$(printf "%q\n" "${lines[@]}")" -- "$(printf "%q\n" "${COMP_WORDS[@]:1}")") )
-	# COMPREPLY=( $(compgen -W "$(printf "%q\n" "${lines[@]}")" -- "$line" | env line="$pline" line="$line" perl -pe 's/$ENV{pline}//') )
-	
-	# COMPREPLY=( $(env line="$line" perl -lne 'if (/^$ENV{line}/) {print s/^$ENV{line}//;}' $projects) )
+	perl -e 'print "COMP_WORDS: $ENV{COMP_WORDS}; COMP_CWORDS: $ENV{COMP_CWORD}\n";'
 	COMPREPLY=( $(env line="$line" pline="$pline" perl -lne 'if (/^$ENV{line}/) { $_ =~ s/^$ENV{pline}//; $_ =~ s/([^a-zA-Z0-9])/\\$1/g; print $_; }' $projects) )
-	
-	# COMPREPLY=( $(compgen -W "$(printf "%q\n" "${lines[@]}")" -- "${COMP_WORDS[@]:1}") )
-	# COMPREPLY=( $(compgen -W "$(printf "%q\n" "${lines[@]}")" -- "${COMP_WORDS[@]:1}") )
-	# COMPREPLY=( $(compgen -W "$(printf "%q\n" "${lines[@]}")" -- "${COMP_WORDS[@]:1}") )
-        # COMPREPLY=( $(compgen -W "$(printf '"%q"'"\n" "${lines[@]}")" -- ${cur}) )
-
 	# echo -e "\n${COMP_WORDS[@]:1}:${COMPREPLY[@]}"
 	echo -e "\n$COMP_CWORD:${pline}:${line}:${COMPREPLY[@]}"
         return 0

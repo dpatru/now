@@ -16,7 +16,8 @@ sub seconds2timestring {
   my $seconds = $seconds % 3600;
   my $minutes = int($seconds / 60);
   $seconds = $seconds % 60;
-  return sprintf("%d:%02d:%02d", $hours, $minutes, $seconds);
+  # return sprintf("%d:%02d:%02d", $hours, $minutes, $seconds);
+  return sprintf("%d:%02d", $hours, $minutes);
 }
 
 sub print_line {
