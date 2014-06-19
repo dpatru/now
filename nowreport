@@ -20,7 +20,7 @@ if ($date && $_ eq '') {
     my $t = $report{$k};
     my $h = int($t / 60);
     my $m = $t % 60; 
-    printf("$k: $h:%02d\n", $m);
+    printf("$k | $h:%02d\n", $m);
   }
   %report = ();
   @dates = ();
