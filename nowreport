@@ -1,6 +1,7 @@
-#!/usr/bin/perl -lan
+#!/usr/bin/perl -slan
 # expects output from nowtss
 # prints report everytime a blank line is encountered.
+# use -v to echa the lines
 
 BEGIN { my %report = (); my $date; my $minutes; my @dates; }
 # if ($date && $date ne $F[0]) { 
@@ -26,7 +27,7 @@ if ($date && $_ eq '') {
   print "";
   next;
 }
-print; 
+print if $v; 
 $date = $F[0];
 push @dates, $date;
 my ($time, $et, $text) = split / - /;
