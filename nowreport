@@ -2,10 +2,19 @@
 # expects output from nowtss
 # prints report everytime a blank line is encountered.
 
-BEGIN { my %report = (); my $date; my $minutes; }
+BEGIN { my %report = (); my $date; my $minutes; my @dates; }
 # if ($date && $date ne $F[0]) { 
-if ($_ eq '') {
-  print "\nReport for $date"; 
+if ($date && $_ eq '') {
+  # print "\nReport for $date";
+  my $d1 = $dates[0];
+  my $d2 = $dates[$#dates];
+  print "";
+  if ($d1 ne $d2) {
+    print "Report for $d1 - $d2";
+  }
+  else {
+    print "Report for $d1";
+  }
   foreach my $k (sort keys %report) {
     my $t = $report{$k};
     my $h = int($t / 60);
@@ -13,10 +22,13 @@ if ($_ eq '') {
     printf("$k: $h:%02d\n", $m);
   }
   %report = ();
-  # print "";
+  @dates = ();
+  print "";
+  next;
 }
 print; 
 $date = $F[0];
+push @dates, $date;
 my ($time, $et, $text) = split / - /;
 $et =~ s/ET (\d+):(\d+)/ 60 * $1 + $2 /e;
 my @tags = split /:/, $text;
@@ -26,4 +38,4 @@ for (my $i = 0; $i <= $#tags; $i++) {
   $report{$k} += $et; 
 }
 # print '';
-    
+

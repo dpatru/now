@@ -1,6 +1,7 @@
 #!/usr/bin/perl -slan
-# expects output from nowtss
-# prints report
+# Expects output from nowtss.
+# Breaks up output with a break line after every day.
+# If -w is given, breaks up every week.
 
 BEGIN { my %report = (); my $date; my $new_date; }
 
