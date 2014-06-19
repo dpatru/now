@@ -1,0 +1,12 @@
+#!/usr/bin/perl -nl
+
+# Take a file of finished projects and return a list of their velocities.
+# Each line of the finished projects file ends with 
+# " | [estimated minutes] | [actual minutes]".
+# print;
+if (my ($est, $act) = $_ =~ /\|\s*(\d+)\s*\|\s*(\d+)\s*$/) {
+    # print "est = $est, act = $act";
+    next if (! $est);
+    my $q = $act / $est;
+    print "$q";
+}
