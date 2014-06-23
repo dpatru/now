@@ -19,6 +19,8 @@ _now()
     pCOMP_CWORD="$[COMP_CWORD-1]"
     opts="--help --verbose --version"
     
+    #echo -e "\nCOMP_WORDS ${COMP_WORDS}; COMP_CWORD ${COMP_CWORD}; COMP_LINE ${COMP_LINE}; COMP_POINT ${COMP_POINT}; COMP_TYPE ${COMP_TYPE}; COMP_WORDBREAKS ${COMP_WORDBREAK}; COMP_KEY ${COMP_KEY};" 1>&2
+
     projects="/Users/danielpatru/Dropbox/.projects"
 
     if [[ ${cur} == -* ]] ; then
@@ -31,10 +33,8 @@ _now()
 	qw="$(printf %q "$w")"
 	sw="$(perl -we '$_ = shift @ARGV; s/^'"'"'//; s/'"'"'$//; print;' "${w}" )"
 	qsw="$(printf %q "${sw}")";
-	echo -e "w: ${w}; qw: ${qw}; sw: ${sw}; qsw: ${qsw};" | perl -ple 'BEGIN {print "\nbasic vars";}' 1>&2
-	echo "$(cat $projects | perl -wple "s/(.*)/'"'$1'"'/" | fgrep "${sw}" )" | perl -ple 'BEGIN {print 1;}' 1>&2
-	echo "$(cat $projects | perl -wple "s/(.*)/'"'$1'"'/" | fgrep "${sw}" | perl -wple 'BEGIN {$w=shift; print "w = $w";} if (/^$w$/ && 0) { '"s/^'(\d+\.?\d*|\d*.\?\d+)/'/;"' }' "${w}")" | perl -ple 'BEGIN {print 2;} END {print "done";};' 1>&2
-	COMPREPLY=( $(cat $projects | perl -wple "s/(.*)/'"'$1'"'/" | fgrep "${sw}" | perl -wple 'BEGIN {$w=shift;} if (/^$w$/ && 0) { '"s/^'(\d+\.?\d*|\d*.\?\d+)/'/;"' }' ${qw}) )
+	COMPREPLY=( $(cat $projects | perl -wple "s/(.*)/'"'$1'"'/" | perl -wnle 'BEGIN{$w=shift @ARGV;} if (! $w) {print; if (s/^(.)[\d\. ]+(.*)$/$1$2/) {print;}} elsif (/^.$w/) {print;} elsif (s/^(.)[\d\. ]+$w/$1$w/) {print;}' ${sw}) )
+	#echo "COMPREPLY ${COMPREPLY[*]};"
         return 0
     fi
 }
