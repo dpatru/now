@@ -46,44 +46,5 @@ END {
 
 __END__
 
-sub seconds2timestring {
-  my $seconds = $_[0];
-  my $hours = int($seconds / 3600);
-  my $seconds = $seconds % 3600;
-  my $minutes = int($seconds / 60);
-  $seconds = $seconds % 60;
-  # return sprintf("%d:%02d:%02d", $hours, $minutes, $seconds);
-  return sprintf("%d:%02d", $hours, $minutes);
-}
-
-sub print_line {
-  my $et_seconds = $_[0];
-  my $line = $_[1]; 
-  my $timestring = seconds2timestring($et_seconds);
-  $line =~ s/ - / - ET $timestring - /;
-  print $line; #  "ET $et - $_"; 
-} 
- 
-my $t1 = -1;
-my $prev_line = ""; 
-while (<>) { # do for each line
-  my $t2 = `date -jf '%F %T' "$_" '+%s' 2> /dev/null`;
-  # if this is the first line, don't print it yet 
-  # because we don't yet know the elapsed time
-  if ($t1 > 0) { 
-    print_line($t2 - $t1, $prev_line);
-  }
-  $t1 = $t2;
-  $prev_line = $_;
-}
-# print the last line too, relative to the current time
-if ($t1 >= 0) {
-  my $t2 = `date -j '+%s' 2> /dev/null`; # use the current time
-  print_line($t2 - $t1, $prev_line);
-}
-
-__END__
-
-
 
 
