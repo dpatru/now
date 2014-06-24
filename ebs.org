@@ -8,3 +8,17 @@
 - don't autocomplete "finished" tasks unless flagged.
 - new utility to create simulations from velocity file and estimates.
 - new utility to simulate a task list.
+
+- one format
+date time act/est task
+- tasks aggregate until new est is given
+now /est task
+- est 0 means don't track
+
+** now
+now [/est] task
+now report [-w] [-v]
+now est [-c=velocityfile] [-f=projectfile] [-p=.2,.4]
+now-break [-w]
+now-report [-v]
+now-estimate [-c=velocityfile] [-f=projectfile] [-p=20,40]
