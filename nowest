@@ -16,6 +16,7 @@ BEGIN {
     #print;
     if (my ($est, $act) = $_ =~ /^([\d\.]+)\/([\d\.]+)\b/){
       #print "est $est act $act";
+      next if !($est > 0);
       my $v = $act / $est;
       #print "v = $v";
       push @v, $v;

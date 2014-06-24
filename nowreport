@@ -7,6 +7,7 @@
 # use -e to only select tasks with estimates
 
 BEGIN { 
+  no warnings 'once';
   # my (%report, $date, @dates); 
   # our %report = (); our $date; our @dates; 
   sub print_report {
@@ -17,12 +18,16 @@ BEGIN {
     #print %report;
     foreach my $k (sort keys %report) {
       foreach my $entry (@{ $report{$k} }) {
-	#print "entry $entry;";
-	my ($estimate) = $entry =~ s/^([\d\.]+)\s*\///;
+	# print "entry $entry;";
+	my ($estimate, $actuals);
+	if (!(($estimate, $actuals) = ($entry =~ /^([\d\.]+)\s*\/\s*(.*)$/))){
+	  $actuals = $entry;
+	  $estimate = '';
+	}
+	# print "entry $entry; estimate $estimate; actuals $actuals";
 	next if $e && $estimate eq ''; # only process estimates
-	#print "entry $entry; estimate $estimate;";
 	my $sum = 0;
-	foreach my $act (split /\s+/, $entry) { 
+	foreach my $act (split /\s+/, $actuals) { 
 	  $sum += $act if $act;
 	}
 	if ($estimate eq '') {
