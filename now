@@ -7,6 +7,6 @@ NOW_FILE="$HOME/Dropbox/.now"
 NOW_FORMAT='%F %T'
 if [[ ! -z "$@" ]] # don't add empty tasks 
 then
-  echo $(date +"$NOW_FORMAT") - "$@" >> $NOW_FILE
+  echo $(date +"$NOW_FORMAT") "$@" >> $NOW_FILE
 fi
-tail -n50 $NOW_FILE | nowtss | nowbreak | nowreport -v | lastsections.pl -n=3
+tail -n100 $NOW_FILE | nowtss | nowbreak | nowreport -a -v #  | lastsections.pl -n=3
