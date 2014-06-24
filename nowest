@@ -1,0 +1,65 @@
+#!/usr/bin/perl -slanw
+# prints estimates based on simulations from completed projects.
+# use -f=file to specify past project file
+# use -n=1000 to set the number of simulations.
+# use -p=20,80 to set print points as percentages.
+# use -v to print the project line (verbose).
+
+BEGIN { 
+  use List::Util qw( min max );
+  no warnings 'once';
+  no warnings 'uninitialized';
+  $past_projects = $f || "nowtss ~/Dropbox/.now | nowreport -e |"; #"/Users/danielpatru/Dropbox/.projects-done";
+  open FH, "$past_projects";
+  while (<FH>) {
+    chomp;
+    #print;
+    if (my ($est, $act) = $_ =~ /^([\d\.]+)\/([\d\.]+)\b/){
+      #print "est $est act $act";
+      my $v = $act / $est;
+      #print "v = $v";
+      push @v, $v;
+    }
+  }
+  $n = int($n);
+  if ($n <= 0) {$n = 100;}
+  if ($p <= 0) {$p = "0,20,40,60,80,100";}
+  @p = split /,/, $p;
+  #print join(' ', @p);
+  # The array @a is used to store simulatons, one line at a time.
+  # Initialize @a to zeros.
+  for $i (0 .. $n) {
+    $a[$i] = 0;
+  }
+  $running_est = 0; # initialize total esimates so far to zero.
+}
+if (my ($est, $proj) = $_ =~ /^([\d\.]+)\s+(.*)/) {
+  next if $est <= 0;
+  if ($v) {print ''; print;}
+  #print "est $est; proj $proj;";
+  my $estdone=0; # boolean flog
+  $running_est += $est; # total estimates so far
+  for my $i (0 .. $n) { 
+    $a[$i] += $est * $v[ int(rand()*$#v) ];
+  }
+  my @sa = sort { $a <=> $b } @a;
+  my @ps=(); # used to store print values
+  for my $p (@p) { 
+      my $aj = $sa[int($n * $p / 100)];
+      # include est in the right place
+      if (!$estdone && $running_est <= $aj) {
+	$estdone = 1;
+	push @ps, "est $running_est";
+      }
+      push @ps, "$p% $aj";
+    }
+  #print join(' ', @a), ", sorted: ", join(' ', @sa);
+  my $replacement_string = join(', ', @ps);
+  #print;
+  if ($v) {print $replacement_string;}
+  else {print "$replacement_string $proj"};
+  #print '';
+}
+END {
+
+}
