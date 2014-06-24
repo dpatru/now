@@ -1,42 +1,82 @@
-#!/usr/bin/perl -slan
+#!/usr/bin/perl -wslan
 # expects output from nowtss
 # prints report everytime a blank line is encountered.
 # use -v to echa the lines
+# use -m to report in minutes
+# use -a to print all aggregates
+# use -e to only select tasks with estimates
 
-BEGIN { my %report = (); my $date; my $minutes; my @dates; }
-# if ($date && $date ne $F[0]) { 
+BEGIN { 
+  # my (%report, $date, @dates); 
+  # our %report = (); our $date; our @dates; 
+  sub print_report {
+    #print '';
+    # print 'dates: ', join(' ', @dates);
+    my ($d1, $d2) = @dates[0, $#dates];
+    print "Report for $d1", $d1 ne $d2? " - $d2": "";
+    #print %report;
+    foreach my $k (sort keys %report) {
+      foreach my $entry (@{ $report{$k} }) {
+	#print "entry $entry;";
+	my ($estimate) = $entry =~ s/^([\d\.]+)\s*\///;
+	next if $e && $estimate eq ''; # only process estimates
+	#print "entry $entry; estimate $estimate;";
+	my $sum = 0;
+	foreach my $act (split /\s+/, $entry) { 
+	  $sum += $act if $act;
+	}
+	if ($estimate eq '') {
+	  printf("%.02f/ %s\n", $sum, $k);
+	}
+	else {
+	  printf("%.02f/%.02f %s\n", $sum, $estimate, $k);
+	}
+      }
+    }
+    print '';
+  }    
+}
+no warnings 'once';
+print if $v; 
+# $date; # squash warning
 if ($date && $_ eq '') {
-  # print "\nReport for $date";
-  my $d1 = $dates[0];
-  my $d2 = $dates[$#dates];
-  print "";
-  if ($d1 ne $d2) {
-    print "Report for $d1 - $d2";
-  }
-  else {
-    print "Report for $d1";
-  }
-  foreach my $k (sort keys %report) {
-    my $t = $report{$k};
-    my $h = int($t / 60);
-    my $m = $t % 60; 
-    printf("$k | $h:%02d\n", $m);
-  }
+  # print 'before dates: ', join(' ', @dates);
+  &print_report();
   %report = ();
   @dates = ();
-  print "";
-  next;
 }
-print if $v; 
-$date = $F[0];
-push @dates, $date;
-my ($time, $et, $text) = split / - /;
-$et =~ s/ET (\d+):(\d+)/ 60 * $1 + $2 /e;
-my @tags = split /:/, $text;
-$report{''} += $et; 
-for (my $i = 0; $i <= $#tags; $i++) {
-  my $k = join(':', @tags[0..$i]);
-  $report{$k} += $et; 
+elsif (($date, $actual, $estimate, $text) = 
+       /^([\d\-]+) (?:[\d\:]+) ([\d\.]+)\/([\d\.]*) (.*)$/) {
+  push @dates, $date;
+  chomp($text);
+  if ($estimate eq '') { # no new estimate, add to latest
+    if (! $report{$text}) { $report{$text} = []; }
+    if ($#{ $report{$text} } >= 0) { # this text has entries
+      $report{$text}[$#{ $report{$text} }] .= " $actual";
+    }
+    else { # no entries for this text so far
+      push @{ $report{$text} }, "$actual";
+    }
+  }
+  else { # estimate exists, make a new entry
+    push @{ $report{$text} }, "$estimate / $actual";
+  }
+  #print "text $text; report[text] @{ $report{$text} };";
+  if ($a) {
+    $report{''} += $actual;
+    my @tags = split /:/, $text;
+    for (my $i = 0; $i < $#tags; $i++) {
+      my $k = join(':', @tags[0..$i]);
+      if (! $report{$k}) { $report{$k} = []; }
+      if ( $#{ $report{$k} } < 0 ) { push @{ $report{$k} }, ''; }
+      $report{$k}[$#{$report{$k}}] .= " $actual";
+    }
+  }
 }
-# print '';
 
+END {
+  if ($#dates >= 0) {
+    print '' if $v;
+    &print_report();
+  }
+}
