@@ -9,6 +9,7 @@ BEGIN {
   use List::Util qw( min max );
   no warnings 'once';
   no warnings 'uninitialized';
+  if (! defined $v) { $v = 1; } 
   $past_projects = $f || "nowtss ~/Dropbox/.now | nowreport -e |"; #"/Users/danielpatru/Dropbox/.projects-done";
   open FH, "$past_projects";
   while (<FH>) {
@@ -52,7 +53,7 @@ if (my ($est, $proj) = $_ =~ /^([\d\.]+)\s+(.*)/) {
 	$estdone = 1;
 	push @ps, "est $running_est";
       }
-      push @ps, "$p% $aj";
+      push @ps, sprintf("$p%%  %.02f", $aj);
     }
   #print join(' ', @a), ", sorted: ", join(' ', @sa);
   my $replacement_string = join(', ', @ps);
