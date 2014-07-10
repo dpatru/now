@@ -5,8 +5,70 @@
 NOW_FILE="$HOME/Dropbox/.now"
 # NOW_FILE="$HOME/.now" # store in home directory
 NOW_FORMAT='%F %T'
-if [[ ! -z "$@" ]] # don't add empty tasks 
+# code borrowed from http://stackoverflow.com/questions/17016007/bash-getopts-optional-arguments
+function Die()
+{
+    echo "$*"
+    exit 1
+}
+
+function Usage()
+{
+cat <<-ENDOFMESSAGE
+$0 [OPTION] [estimate] [task]
+
+options:
+    -f [filename]    nowfile
+    -h --help        display this message
+    -n [number]      display the last [number] days or weeks
+
+ENDOFMESSAGE
+    exit 1
+}
+
+# argv=( "global" )
+weekly=""
+n=3
+
+function GetOpts() {
+    argv=()
+    while [ $# -gt 0 ]
+    do
+	opt=$1
+        shift
+        case ${opt} in
+            -f)
+                if [ $# -eq 0 -o "${1:0:1}" = "-" ]; then
+                    Die "The ${opt} option requires an argument."
+                fi
+                NOW_FILE="$1"
+                shift
+                ;;
+            -n)
+                if [ $# -eq 0 -o "${1:0:1}" = "-" ]; then
+                    Die "The ${opt} option requires an argument."
+                fi
+                n="$((2 * ${1} + 1))"
+                shift
+                ;;
+            -h|--help)
+                Usage
+		;;
+	    -w)
+		weekly="-w"
+		;;
+            *)
+                if [ "${opt:0:1}" = "-" ]; then
+                    Die "${opt}: unknown option."
+                fi
+                argv+=(${opt});;
+        esac
+    done 
+}
+GetOpts $*
+
+if [ "${#argv}" -gt 0 ] # add task
 then
-  echo $(date +"$NOW_FORMAT") "$@" >> $NOW_FILE
+  echo $(date +"$NOW_FORMAT") "${argv[@]}" >> $NOW_FILE
 fi
-tail -n100 $NOW_FILE | nowtss | nowbreak | nowreport -a -v #  | lastsections.pl -n=3
+tail -n1000 $NOW_FILE | nowtss | nowbreak ${weekly} | nowreport -a -v | lastsections.pl -n="${n}"

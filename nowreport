@@ -2,14 +2,21 @@
 # expects output from nowtss
 # prints report everytime a blank line is encountered.
 # use -v to echa the lines
-# use -m to report in minutes
 # use -a to print all aggregates
 # use -e to only select tasks with estimates
 
 BEGIN { 
   no warnings 'once';
   # my (%report, $date, @dates); 
-  # our %report = (); our $date; our @dates; 
+  # our %report = (); our $date; our @dates;
+
+  sub hm { # show hours in hours:minutes
+    my ($hours,) = @_;
+    my $minutes = int($hours * 100 % 100 / 100 * 60);
+    $hours = int($hours);
+    return sprintf("%d:%02d", $hours, $minutes);
+  }
+      
   sub print_report {
     #print '';
     # print 'dates: ', join(' ', @dates);
@@ -30,11 +37,12 @@ BEGIN {
 	foreach my $act (split /\s+/, $actuals) { 
 	  $sum += $act if $act;
 	}
+	$psum = hm($sum);
 	if ($estimate eq '') {
-	  printf("%.02f/ %s\n", $sum, $k);
+	  printf("(%s) %.02f/ %s\n", $psum, $sum, $k);
 	}
 	else {
-	  printf("%.02f/%.02f %s\n", $sum, $estimate, $k);
+	  printf("(%s) %.02f/%.02f %s\n", $psum, $sum, $estimate, $k);
 	}
       }
     }
