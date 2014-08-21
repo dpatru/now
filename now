@@ -21,6 +21,8 @@ options:
     -f [filename]    nowfile
     -h --help        display this message
     -n [number]      display the last [number] days or weeks
+    -w               report weekly
+    -v               print record lines before report
 
 ENDOFMESSAGE
     exit 1
@@ -28,7 +30,8 @@ ENDOFMESSAGE
 
 # argv=( "global" )
 weekly=""
-n=3
+n=1
+print_lines=""
 
 function GetOpts() {
     argv=()
@@ -37,7 +40,7 @@ function GetOpts() {
 	opt=$1
         shift
         case ${opt} in
-            -f)
+            -f|--file)
                 if [ $# -eq 0 -o "${1:0:1}" = "-" ]; then
                     Die "The ${opt} option requires an argument."
                 fi
@@ -48,14 +51,17 @@ function GetOpts() {
                 if [ $# -eq 0 -o "${1:0:1}" = "-" ]; then
                     Die "The ${opt} option requires an argument."
                 fi
-                n="$((2 * ${1} + 1))"
+                n="${1}"
                 shift
                 ;;
             -h|--help)
                 Usage
 		;;
-	    -w)
+	    -w|--week|--weekly)
 		weekly="-w"
+		;;
+	    -v)
+		print_lines="-v"
 		;;
             *)
                 if [ "${opt:0:1}" = "-" ]; then
@@ -71,4 +77,11 @@ if [ "${#argv}" -gt 0 ] # add task
 then
   echo $(date +"$NOW_FORMAT") "${argv[@]}" >> $NOW_FILE
 fi
-tail -n1000 $NOW_FILE | nowtss | nowbreak ${weekly} | nowreport -a -v | lastsections.pl -n="${n}"
+if [[ -n ${print_lines} ]] 
+then 
+  n="$(( 2 * ${n} + 1 ))"
+else 
+  n="$(( ${n} + 1 ))"
+fi
+
+tail -n1000 $NOW_FILE | nowtss | nowbreak ${weekly} | nowreport -a ${print_lines} | lastsections.pl -n="${n}"
