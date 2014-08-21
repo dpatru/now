@@ -10,13 +10,27 @@ BEGIN {
   no warnings 'once';
   no warnings 'uninitialized';
   sub usage {
-    print "
-prints estimates based on simulations from completed projects.
-  use -f=file to specify past project file
-  use -n=1000 to set the number of simulations.
+    print <<"END_USAGE";
+Usage: $0 [options] < .projects
+       $0 [options] < .projects
+
+Print estimates based on simulations from completed projects.
+
+Examples: 
+  > nowest < .projects
+
+  > nowest .projects
+
+  > nowtss .now | nowreport -e > .project_velocities
+  > nowest -f .project_velocities .projects
+
+Options: 
+  -h | --help  Print help message.
+  -f=file      Specify past project file (velocities) in `nowreport -e` format.
+  -n=1000      Set the number of simulations.
   use -p=20,80 to set print points as percentages.
   use -v to print the project line (verbose).
-"; 
+END_USAGE
   }
   if ($h || ${-help}) {
     usage();
