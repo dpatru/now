@@ -7,6 +7,24 @@
 
 BEGIN { 
   no warnings 'once';
+  sub usage {
+    print <<"END_USAGE";
+USAGE: nowtss .now | $0 [options] 
+
+Print a report everytime a blank line is encountered.
+
+Options: 
+  -v    echa the input lines
+  -a    print all aggregates
+  -e    only select tasks with estimates (used to select velocities.)
+END_USAGE
+  }
+
+  if ($h || ${-help}) {
+    usage();
+    exit 0;
+  }
+
   # my (%report, $date, @dates); 
   # our %report = (); our $date; our @dates;
 
