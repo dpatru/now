@@ -39,7 +39,9 @@ END_USAGE
     #print '';
     # print 'dates: ', join(' ', @dates);
     my ($d1, $d2) = @dates[0, $#dates];
-    print "Report for $d1", $d1 ne $d2? " - $d2": "";
+    my $wday1 = qx(date -jf %F $d1 +%a); chomp $wday1;
+    my $wday2 = qx(date -jf %F $d2 +%a); chomp $wday2;
+    print "Report for $wday1 $d1", $d1 ne $d2? " - $wday2 $d2": "";
     #print %report;
     foreach my $k (sort keys %report) {
       foreach my $entry (@{ $report{$k} }) {

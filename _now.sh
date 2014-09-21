@@ -34,7 +34,7 @@ _now()
 	sw="$(perl -we '$_ = shift @ARGV; s/^'"'"'//; s/'"'"'$//; print;' "${w}" )"
 	qsw="$(printf %q "${sw}")";
 	COMPREPLY=( $(cat $projects | perl -wple "s/(.*)/'"'$1'"'/" | perl -wnle 'BEGIN{$w=shift @ARGV;} if (! $w) {print; if (s/^(.)[\d\. ]+(.*)$/$1$2/) {print;}} elsif (/^.$w/) {print;} elsif (s/^(.)[\d\. ]+$w/$1$w/) {print;}' ${sw}) )
-	#echo "COMPREPLY ${COMPREPLY[*]};"
+	#echo "COMPREPLY ${COMPREPLY[*]};" 
         return 0
     fi
 }
