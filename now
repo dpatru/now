@@ -9,6 +9,7 @@ use Data::Dumper;
 use File::HomeDir;
 use Time::Seconds;
 use Scalar::Util qw(looks_like_number);
+use List::Util qw(sum);
 
 sub getNowfile {
   my $f = glob $ENV{NOW_FILE};
@@ -37,7 +38,7 @@ GetOptions(\%opts,
 	   'h|?', 'help|man', 'version', 'verbose|v',
 	   'hours', 'minutes', 'hours-minutes',
 	   'silent|s', 'nobreak', 'breakword=s@',
-	   'estimates',
+	   'estimates', 'noestimates',
 	   't=i', 'w=i', 'd=i', 'y=i', 'f=s'
 	  )
   or pod2usage(2);
@@ -62,6 +63,22 @@ sub setBreakword {
 };
 
 setBreakword;
+
+sub setEstimates {
+  if ($opts{estimates}) {
+    say "estimates set by commandline";
+    return;
+  }
+  elsif ( $opts{noestimates} ) {
+    say "estimates unset by commandline";
+    return; }
+  elsif ( $ENV{NOW_ESTIMATES} ) {
+    say "estimates set by environment";
+    $opts{estimates} = 1;
+  }
+};
+setEstimates;
+  
 # say "breakword = @{$opts{breakword}}";
 
 
@@ -72,7 +89,6 @@ if ($opts{version}) {
   say "This is now version 1. ";
   exit(0);
 }
-    
 
 pod2usage("$0: options t, w, and d accept only non-negative integers.")
   if $opts{t} < 0 || $opts{d} < 0 || $opts{w} < 0;
@@ -85,12 +101,12 @@ sub timestamp {
 }
 # say timestamp();
 
-sub parseTimestamp { # return a gmt of the localtime timestamp
+sub parseTimestamp { # return a localtime of timestamp
   use Try::Tiny;
   my $s = shift(@_);
   try {
     my $t = Time::Piece->strptime($s, "%Y-%m-%d %T");
-    $t -= localtime->tzoffset; # convert to gmt
+    $t -= localtime->tzoffset; # convert to localtime
     # say "parseTimestamp($s) = $t ";
     return $t;
   } catch {
@@ -105,7 +121,7 @@ my ($t1, $t2);
 
 sub parseLine {
   my ($t2, $line) = @_;
-  if (my($timestamp, $est, $task) = $line =~ /(\d+\-\d+\-\d+ \d+:\d+:\d+) ?(\d*) (.*)/) {
+  if (my($timestamp, $est, $task) = $line =~ /(\d+\-\d+\-\d+ \d+:\d+:\d+) ?([\d\.-]*) (.*)/) {
     my $t1 = parseTimestamp($timestamp);
     if ($t1) {
       my $et = sprintf("%.2f", ($t2 - $t1)/3600.0);
@@ -116,31 +132,54 @@ sub parseLine {
 
 sub addToTree {
   my ($tree, $et, @categories) = @_;
+  # say "addToTree: " . join ', ', @{$et};
   for (@categories) {
     if (exists $tree->{$_}) {$tree = $tree->{$_};}
     else {$tree = $tree->{$_} = {};}
   }
-  $tree->{''} += $et;
+  $tree->{''} = $et; # $et can be a list or o scalar.
 };
 
 sub printHours {
-  my ($hours, $est)= @_;
+  my $arg = shift @_;
+  my ($hours, $est)= @{$arg};
   
   my $output = '';
   if ($opts{"hours-minutes"}) {
     $output .= sprintf("%6d:%02d", int($hours), ($hours - int($hours))*60.0);
-    $output .= sprintf("/%6d:%02d", int($est), ($est - int($est))*60.0) if $opts{estimates};
+    if ($opts{estimates}) {
+      if ($est) {
+	$output .= sprintf("/%6d:%02d", int($est), ($est - int($est))*60.0);
+      }
+      else {
+	$output .= "/ no est";
+      }
+    }
     $output .= " ";
     
   }
   if ($opts{minutes}) {
     $output .= sprintf("%10.0f min", $hours * 60.0);
-    $output .= sprintf("/%10.0f min", $est * 60.0) if $opts{estimates};
+    if ($opts{estimates}) {
+      if ($est) {
+	$output .= sprintf("/%10.0f min", $est * 60.0);
+      }
+      else {
+	$output .= "/ no est";
+      }
+    }
     $output .= " ";
   }
   if ($opts{hours} or !$output) {
     $output .= sprintf("%8.2f hrs", $hours);
-    $output .= sprintf("/%8.2f hrs", $est) if $opts{estimates};
+    if ($opts{estimates}) {
+      if ($est) {
+	$output .= sprintf("/%8.2f hrs", $est);
+      }
+      else {
+	$output .= "/ no est";
+      }
+    }
     $output .= " ";
   }
   return $output;
@@ -157,35 +196,40 @@ sub printReport {
     my ($prefix, $suffix, $r) = @_;
     @_ = ();
     my $sum = 0;
+    my $estsum = 0;
     # say "level = $level: " . Dumper($r);
     my @sorted_keys = reverse sort keys %{ $r };
     for my $k ( @sorted_keys ) {
       if (ref($r->{$k}) eq 'HASH') {
 	if (scalar keys %{ $r->{$k} } == 1 and exists $r->{$k}->{''}) {
 	  # say "Leaf category, printing hours for $suffix $k";
-	  # my $t = sprintf("%8.2f", $r->{$k}->{''});
 	  unshift @output_lines, "$prefix         " . printHours($r->{$k}->{''}) . "$suffix $k";
-	  $sum += $r->{$k}->{''};
+	  $sum += ${$r->{$k}->{''}}[0];
+	  $estsum += ${$r->{$k}->{''}}[1];
+	  # say "constructed leaf: sum = $sum, estsum = $estsum";
 	} else {
 	  # say "Aggregate category, find totals and print summary for $suffix $k";
 	  my $total = _p("$prefix", "$suffix $k:", $r->{$k});
-	  # my $t = sprintf("%8.2f", $total);
 	  unshift @output_lines, "$prefix ". printHours($total) . "(total) $suffix $k";
-	  $sum += $total;
+	  $sum += ${$total}[0];
+	  $estsum += ${$total}[1];
+	  # say "aggregate: sum = $sum, estsum = $estsum";
 	}
       } else {
 	# say "True leaf, print hours for $suffix $k";
 	# my $t = sprintf("%8.2f", $r->{$k});
 	unshift @output_lines, "$prefix         " . printHours($r->{$k}) . "$suffix $k";
-	$sum += $r->{$k};
+	$sum += ${$r->{$k}}[0];
+	$estsum += ${$r->{$k}}[1];
+	# say "leaf: sum = $sum, estsum = $estsum";
       }
     }
-    return $sum;
+    return [$sum, $estsum];
   };
   # _p(0, $r);
   for my $k (reverse sort keys %{ $r }) {
-    my $t = sprintf("%8.02f", _p($k, "", $r->{$k}));
-    unshift @output_lines, "\n$k $t hrs (total)";
+    my $t = _p($k, "", $r->{$k});
+    unshift @output_lines, "\n$k ". printHours($t) . "(total)";
   }
   say for @output_lines;
 };
@@ -197,7 +241,8 @@ sub getVelocities { # get some velocities to simulate with
   use File::ReadBackwards ;
   # Tied Handle Interface
   my ($t2, $et, $est, $task);
-  $t2 = localtime;
+  # $t2 = localtime;
+  $t2 = gmtime; $t2 += localtime->tzoffset;
   my @velocities;
   tie *BW, 'File::ReadBackwards', $opts{f} or
     die "can't read .now file ($opts{f}) $!" ;
@@ -214,7 +259,7 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
   # say "there are still arguments: " . join ', ', @ARGV;
   if ( (grep { looks_like_number($_) } @ARGV) == @ARGV ) { # test lengths
     # say "all args are numbers - Simulate";
-    say "Simulating . . . ";
+    say "Simulating tasks of " . join(', ', @ARGV). " = " . sum(@ARGV) . " hrs total, printing percentiles . . . ";
     my @velocities = getVelocities();
     # say "velocities = " . join ',', @velocities;
     
@@ -256,7 +301,7 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
       chomp;
       if (my ($t2, $et, $est, $task) = parseLine($t2, $_)) {
 	say "$t2, $et, $est, $task";
-	unshift @output_lines, "$t2 for ".printHours($et)." $task";
+	unshift @output_lines, timestamp($t2) . " for ".printHours([$et,$est])." $task";
 	last if $opts{t}-- <= 0;
       }}
     say for @output_lines;
@@ -264,20 +309,20 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
 
   if ($opts{d}) { # daily report
     # say "daily";
-    generate_report("date", $opts{d});
+    generateReport("date", $opts{d});
   }
   if ($opts{w}) { # weekly report
     # say "weekly";
-    generate_report(sub {
+    generateReport(sub {
 		      my $t = $_[0];
 		      return $t->year . " week " . $t->week . " beginning " .
 			    ($t - $t->_wday * ONE_DAY)->date; },
 		    $opts{w});
   }
   if ($opts{y}) { # yearly report
-    generate_report("year", $opts{y});
+    generateReport("year", $opts{y});
   }
-  sub generate_report {
+  sub generateReport {
     my ($field, $n) = @_;
     my @processed_lines; # store processed lines here for verbose option
 
@@ -290,10 +335,9 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
     my %report;
     tie *BW, 'File::ReadBackwards', $opts{f} or
       die "can't read .now file ($opts{f}) $!" ;
-    my $t2 = gmtime;
+    my $t2 = localtime; # gmtime; //  + localtime->tzoffset;
     while( <BW> ) {
       chomp;
-      # $t2 = gmtime if $breakflag;
       if (my ($nextt2, $et, $est, $task) = parseLine($t2, $_)) {
 	if ($opts{verbose}) { unshift @processed_lines, "$t2 $et $est $task"; }
 	$t2 = $nextt2;
@@ -312,7 +356,7 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
 	  $r = $report{$t2->$field} = {};
 	}
 	my @categories = split /\s*:+\s*/, $task;
-	addToTree( $r, $et, @categories );
+	addToTree( $r, [$et, $est], @categories );
 	# say Dumper(\%report);
       }}
     if ($opts{verbose}) { say for @processed_lines; say ""; }
@@ -341,7 +385,7 @@ now -w 4            # Print report of the last 4 weeks.
 now 5               # Estimate duration of task estimated to be 5 minutes.
 
 now 5 10 3          # Estimate the duration of tasks estimated to be 
-                    # 5, 10, and 3 minutes.
+                    # 5, 10, and 3 hours.
 
 sample - Using GetOpt::Long and Pod::Usage
 
@@ -360,6 +404,7 @@ sample [options] [file ...]
    --nobreak         do not skip breaks
    --breakword stop  use "stop" as the breakword instead of "break".
    --estimates       show estimates when reporting
+   --noestimates     turn off estimates when reporting
    -f mynowfile      use now file mynowfile (default is ~/.now)
    -t 5              show 5 tosks
    -d 5              show 5 days
@@ -392,7 +437,7 @@ B<now> is a simple, text-based, shell-based time tracker suitable for
 tracking time at the terminal and completing time sheets. 
 Tasks are stored in a text file ~/Dropbox/.now or ~/.now.
 Tasks are stored in the .now file, one task per line, prepended by a timestamp and 
-an optional estimate. You can easily edit this file by hand. This utility just 
+an optional estimate (in hours). You can easily edit this file by hand. This utility just 
 makes common tasks easier.
 
 B<now> has three modes of use: 
@@ -435,7 +480,26 @@ export NOW_FILE=~/.now
 
 =back
 
-=item B<break
+=item B<breakword>
+
+To customize the break word, add the following line to you ~/.profile:
+
+=over 4
+
+export NOW_BREAK_WORD=stop,break,quit,done
+
+=back
+
+=item B<estimates>
+
+To set estimates on automatically, add the following line to you ~/.profile:
+
+=over 4
+
+export NOW_ESTIMATES=1
+
+=back
+
 
 
 =cut
