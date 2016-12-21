@@ -22,7 +22,7 @@ my %opts = (f=>$default_nowfile);
 
 Getopt::Long::Configure ("bundling");
 GetOptions(\%opts,
-	   'h|?', 'help|man', 'version',
+	   'h|?', 'help|man', 'version', 'verbose|v',
 	   't=i', 'w=i', 'd=i', 'y=i', 'f=s'
 	  )
   or pod2usage(2);
@@ -183,6 +183,8 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
     say for @output_lines;
   }
 
+  my @processed_lines; # store processed lines here for verbose option
+  
   if ($opts{d}) { # daily report
     $t2 = localtime;
     my @output_lines;
@@ -191,7 +193,11 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
       die "can't read .now file ($opts{f}) $!" ;
     while( <BW> ) {
       chomp;
-      if (($t2, $et, $est, $task) = parseLine($t2, $_)) {
+      my $nextt2;
+      if (($nextt2, $et, $est, $task) = parseLine($t2, $_)) {
+	if ($opts{verbose}) { unshift @processed_lines, "$t2 $et $est $task"; }
+	$t2 = $nextt2;
+	
 	my $r;
 	if (exists $report{$t2->date}) {
 	  $r = $report{$t2->date};
@@ -211,6 +217,8 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
 	addToLeaf( $r, $et, @categories );
 	#say Dumper(\%report);
       }}
+    
+    if ($opts{verbose}) { say for @processed_lines; say ""; }
     printReport(\%report);
   }
 
@@ -222,7 +230,11 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
       die "can't read .now file ($opts{f}) $!" ;
     while( <BW> ) {
       chomp;
-      if (($t2, $et, $est, $task) = parseLine($t2, $_)) {
+      my $nextt2;
+      if (($nextt2, $et, $est, $task) = parseLine($t2, $_)) {
+	if ($opts{verbose}) { unshift @processed_lines, "$t2 $et $est $task"; }
+	$t2 = $nextt2;
+
 	my $r;
 	my $week_number = $t2->year . " week " . $t2->week . " beginning " .
 	  ($t2 - $t2->_wday * ONE_DAY)->date;
@@ -245,6 +257,7 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
 	addToLeaf( $r, $et, @categories );
 	#say Dumper(\%report);
       }}
+    if ($opts{verbose}) { say for @processed_lines; say ""; }
     printReport(\%report);
   }
 
@@ -256,7 +269,11 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
       die "can't read .now file ($opts{f}) $!" ;
     while( <BW> ) {
       chomp;
-      if (($t2, $et, $est, $task) = parseLine($t2, $_)) {
+      my $nextt2;
+      if (($nextt2, $et, $est, $task) = parseLine($t2, $_)) {
+	if ($opts{verbose}) { unshift @processed_lines, "$t2 $et $est $task"; }
+	$t2 = $nextt2;
+	
 	my $r;
 	if (exists $report{$t2->year}) {
 	  $r = $report{$t2->year};
@@ -277,6 +294,7 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
 	addToLeaf( $r, $et, @categories );
 	#say Dumper(\%report);
       }}
+    if ($opts{verbose}) { say for @processed_lines; say ""; }
     printReport(\%report);
   }
 }
@@ -314,6 +332,7 @@ sample [options] [file ...]
    -h|?             brief help message
    --help | --man   full documentation
    --version        print version and exit
+   --verbose | -v   print processed lines before reports
    -f mynowfile     use now file mynowfile (default is ~/.now)
    -t 5             show 5 tosks
    -d 5             show 5 days
@@ -338,6 +357,7 @@ Prints the manual page and exits.
 B<now> is a simple, text-based, shell-based time tracker suitable for 
 tracking time at the terminal and completing time sheets. 
 Tasks are stored in a text file ~/.now. 
+(To customize use the -f flag or set the NOWFILE environment variable.)
 Tasks are stored in the .now file, one task per line, prepended by a timestamp and 
 an optional estimate. You can easily edit this file by hand. This utility just 
 makes common tasks easier.
@@ -365,7 +385,7 @@ now 10 my task # start tracking "my task" now, estimate 10 minutes
 
 =back
 
-Use the -d, -w, or -t options for report mode. This will print a report of the last n days, weeks, or tasks respectively. Colons (:) are used to mark task categories. Reports break down time spent hierachially in each category and task.
+Use the -d, -w, or -t options for report mode. This will print a report of the last n days, weeks, or tasks respectively. Colons (:) are used to mark task categories. Reports break down time spent hierachially in each category and task. The -v or --verbose option will print the tasks processed before the report.
 
 Calling B<now> with a list of estimates will produce a time range based on past estimates in the now file. 
 
