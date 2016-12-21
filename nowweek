@@ -1,6 +1,0 @@
-#!/bin/bash
-
-# show the week's report:
-NOW_FILE="$HOME/Dropbox/.now"
-
-tail -n500 $NOW_FILE | nowtss | nowbreak -w | nowreport | lastsections.pl -n=3
