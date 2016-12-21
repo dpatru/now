@@ -1,87 +1,371 @@
-#!/bin/bash
-# from https://news.ycombinator.com/item?id=7411120
+#!/usr/local/bin/perl
 
-# Modify this to change where the now file is stored.
-NOW_FILE="$HOME/Dropbox/.now"
-# NOW_FILE="$HOME/.now" # store in home directory
-NOW_FORMAT='%F %T'
-# code borrowed from http://stackoverflow.com/questions/17016007/bash-getopts-optional-arguments
-function Die()
-{
-    echo "$*"
-    exit 1
+use strict;
+use v5.10;
+use Getopt::Long qw(GetOptions);
+use Pod::Usage qw(pod2usage);
+use Time::Piece;
+use Data::Dumper;
+use File::HomeDir;
+use Time::Seconds;
+use Scalar::Util qw(looks_like_number);
+
+my $default_nowfile = glob $ENV{NOWFILE} or File::HomeDir->my_home . ".now";
+
+  
+my %opts = (f=>$default_nowfile);
+## Parse options and print usage if there is a syntax error,
+## or if usage was explicitly requested.
+
+# say Dumper(\%opts);
+# say "Argv is " . join ' ', @ARGV;
+
+Getopt::Long::Configure ("bundling");
+GetOptions(\%opts,
+	   'h|?', 'help|man', 'version',
+	   't=i', 'w=i', 'd=i', 'y=i', 'f=s'
+	  )
+  or pod2usage(2);
+# say Dumper(\%opts);
+
+pod2usage(-verbose => 1) if $opts{h};
+pod2usage(-verbose => 2) if $opts{help};
+
+if ($opts{version}) {
+  say "This is now version 1. ";
+  exit(0);
+}
+    
+
+pod2usage("$0: options t, w, and d accept only non-negative integers.")
+  if $opts{t} < 0 || $opts{d} < 0 || $opts{w} < 0;
+
+# say "Argv is " . join ' ', @ARGV;
+
+sub timestamp {
+  my $t = localtime;
+  return $t->date . ' ' . $t->time;
+}
+# say timestamp();
+
+sub parseTimestamp {
+  use Try::Tiny;
+  my $s = shift(@_);
+  try {
+    my $t = Time::Piece->strptime($s, "%Y-%m-%d %T"); 
+    # say "parseTimestamp($s) = $t";
+    return $t;
+  } catch {
+    say "parseTimestamp: caught error $_";
+    return 0;
+  } 
 }
 
-function Usage()
-{
-cat <<-ENDOFMESSAGE
-$0 [OPTION] [estimate] [task]
+# say parseTimestamp("2016-12-16 15:06:07");
 
-options:
-    -f [filename]    nowfile
-    -h --help        display this message
-    -n [number]      display the last [number] days or weeks
-    -w               report weekly
-    -v               print record lines before report
+my ($t1, $t2);
 
-ENDOFMESSAGE
-    exit 1
+sub parseLine {
+  my $t2 = shift(@_);
+  my $line = shift(@_);
+  if (my($timestamp, $est, $task) = $line =~ /(\d+\-\d+\-\d+ \d+:\d+:\d+) ?(\d*) (.*)/) {
+    my $t1 = parseTimestamp($timestamp);
+      if ($t1) {
+	my $et = sprintf("%.02f", ($t2 - $t1)/3600.0);
+	return ($t1, $et, $est, $task);
+      }}
+  return ();
+};
+
+sub addToLeaf {
+  my ($tree, $et, @categories) = @_;
+  for (@categories) {
+    if (exists $tree->{$_}) {$tree = $tree->{$_};}
+    else {$tree = $tree->{$_} = {};}
+  }
+  $tree->{''} += $et;
+};
+
+sub printReport {
+  my $r = shift(@_);
+  my @output_lines;
+  sub _p {
+    my ($level, $r) = @_;
+    my $sum = 0;
+    # say "level = $level: " . Dumper($r);
+    my @sorted_keys = reverse sort keys %{ $r };
+    for my $k ( @sorted_keys ) {
+      if (ref($r->{$k}) eq 'HASH') {
+	if (scalar keys %{ $r->{$k} } == 1 and exists $r->{$k}->{''}) {
+	  my $t = $r->{$k}->{''};
+	  unshift @output_lines, "  " x $level . "$k: $t";
+	  $sum += $t;
+	} else {
+	  my $total = _p($level + 1, $r->{$k});
+	  unshift @output_lines, "  " x $level . "$k: ($total)";
+	  $sum += $total;
+	}
+      } else {
+	unshift @output_lines, "  " x $level . "'': $r->{$k}";
+	$sum += $r->{$k};
+      }
+    }
+    # unshift @output_lines, "  " x $level . "Total: $sum";
+    return $sum;
+  };
+  _p(0, $r);
+  say for @output_lines;
+};
+
+sub get_velocities { # get some velocities to simulate with
+  # use the n most recent
+  my $n = 1000;
+  
+  use File::ReadBackwards ;
+  # Tied Handle Interface
+  my ($t2, $et, $est, $task);
+  $t2 = localtime;
+  my @velocities;
+  tie *BW, 'File::ReadBackwards', $opts{f} or
+    die "can't read .now file ($opts{f}) $!" ;
+  while( <BW> ) {
+    chomp;
+    if (($t2, $et, $est, $task) = parseLine($t2, $_) and $est) {
+      unshift @velocities, 1.0 * $et / $est;
+      last if $n-- <= 0;
+    }}
+  return @velocities;
 }
 
-# argv=( "global" )
-weekly=""
-n=1
-print_lines=""
-
-function GetOpts() {
-    argv=()
-    while [ $# -gt 0 ]
-    do
-	opt=$1
-        shift
-        case ${opt} in
-            -f|--file)
-                if [ $# -eq 0 -o "${1:0:1}" = "-" ]; then
-                    Die "The ${opt} option requires an argument."
-                fi
-                NOW_FILE="$1"
-                shift
-                ;;
-            -n)
-                if [ $# -eq 0 -o "${1:0:1}" = "-" ]; then
-                    Die "The ${opt} option requires an argument."
-                fi
-                n="${1}"
-                shift
-                ;;
-            -h|--help)
-                Usage
-		;;
-	    -w|--week|--weekly)
-		weekly="-w"
-		;;
-	    -v)
-		print_lines="-v"
-		;;
-            *)
-                if [ "${opt:0:1}" = "-" ]; then
-                    Die "${opt}: unknown option."
-                fi
-                argv+=(${opt});;
-        esac
-    done 
+if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
+  # say "there are still arguments: " . join ', ', @ARGV;
+  if ( (grep { looks_like_number($_) } @ARGV) == @ARGV ) { # test lengths
+    # say "all args are numbers - Simulate";
+    say "Simulating . . . ";
+    my @velocities = get_velocities();
+    # say "velocities = " . join ',', @velocities;
+    
+    my @times;
+    my $n = 100;
+    while ($n-- > 0) {
+      my $t = 0;
+      for (@ARGV) { $t += $_ * $velocities[rand @velocities]; }
+      unshift @times, sprintf("%6.0f", $t);
+    }
+    my $i = 5;
+    say "     5%     15%     25%     35%     45%     55%     65%     75%     85%     95%";
+    say join ', ', grep { not ( $i++ % 10 ) } sort { $a <=> $b } @times;
+  } else {
+    say "NOT all args are numbers - Add a task";
+    open(my $fh, '>>', $opts{f}) or die "Could not open file '$opts{f}' $!";
+    say $fh timestamp() . " " . join ' ', @ARGV;
+    close $fh; 
+  }
 }
-GetOpts $*
 
-if [ "${#argv}" -gt 0 ] # add task
-then
-  echo $(date +"$NOW_FORMAT") "${argv[@]}" >> $NOW_FILE
-fi
-if [[ -n ${print_lines} ]] 
-then 
-  n="$(( 2 * ${n} + 1 ))"
-else 
-  n="$(( ${n} + 1 ))"
-fi
+if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
+  use File::ReadBackwards ;
+  # Tied Handle Interface
+  my ($t2, $et, $est, $task);
 
-tail -n1000 $NOW_FILE | nowtss | nowbreak ${weekly} | nowreport -a ${print_lines} | lastsections.pl -n="${n}"
+  if ($opts{t}) { # task report
+    $t2 = localtime;
+    my @output_lines;
+    tie *BW, 'File::ReadBackwards', $opts{f} or
+      die "can't read .now file ($opts{f}) $!" ;
+
+    while( <BW> ) {
+      chomp;
+      if (($t2, $et, $est, $task) = parseLine($t2, $_)) {
+	unshift @output_lines, "$t2 for $et hrs: $task";
+	last if $opts{t}-- <= 0;
+      }}
+    say for @output_lines;
+  }
+
+  if ($opts{d}) { # daily report
+    $t2 = localtime;
+    my @output_lines;
+    my %report;
+    tie *BW, 'File::ReadBackwards', $opts{f} or
+      die "can't read .now file ($opts{f}) $!" ;
+    while( <BW> ) {
+      chomp;
+      if (($t2, $et, $est, $task) = parseLine($t2, $_)) {
+	my $r;
+	if (exists $report{$t2->date}) {
+	  $r = $report{$t2->date};
+	  # say $t2->date . " exists: " . Dumper($r);
+	} else {
+	  # say $t2->date . " does not exist.";
+	  if ($opts{d} <= 0) {
+	    # say $opts{d} . " <= 0, quitting.";
+	    last;
+	  } else {
+	    # say $opts{d} . " > 0, keep going.";
+	  }
+	  $opts{d}--;
+	  $r = $report{$t2->date} = {};
+	}
+	my @categories = split /\s*:+\s*/, $task;
+	addToLeaf( $r, $et, @categories );
+	#say Dumper(\%report);
+      }}
+    printReport(\%report);
+  }
+
+  if ($opts{w}) { # weekly report
+    $t2 = localtime;
+    my @output_lines;
+    my %report;
+    tie *BW, 'File::ReadBackwards', $opts{f} or
+      die "can't read .now file ($opts{f}) $!" ;
+    while( <BW> ) {
+      chomp;
+      if (($t2, $et, $est, $task) = parseLine($t2, $_)) {
+	my $r;
+	my $week_number = $t2->year . " week " . $t2->week . " beginning " .
+	  ($t2 - $t2->_wday * ONE_DAY)->date;
+	if (exists $report{$week_number}) {
+	  $r = $report{$week_number};
+	  # say $week_number . " exists.";
+
+	} else {
+	  if ($opts{w} <= 0) {
+	    # say $opts{w} . " <= 0, quitting.";
+	    last;
+	  } else {
+	    # say $opts{w} . " > 0, keep going.";
+	  }
+	  # say $week_number . " does not exist.";
+	  $opts{w}--;
+	  $r = $report{$week_number} = {};
+	}
+	my @categories = split /\s*:+\s*/, $task;
+	addToLeaf( $r, $et, @categories );
+	#say Dumper(\%report);
+      }}
+    printReport(\%report);
+  }
+
+  if ($opts{y}) { # yearly report
+    $t2 = localtime;
+    my @output_lines;
+    my %report;
+    tie *BW, 'File::ReadBackwards', $opts{f} or
+      die "can't read .now file ($opts{f}) $!" ;
+    while( <BW> ) {
+      chomp;
+      if (($t2, $et, $est, $task) = parseLine($t2, $_)) {
+	my $r;
+	if (exists $report{$t2->year}) {
+	  $r = $report{$t2->year};
+	  # say $t2->year . " exists.";
+
+	} else {
+	  if ($opts{y} <= 0) {
+	    # say $opts{y} . " <= 0, quitting.";
+	    last;
+	  } else {
+	    # say $opts{y} . " > 0, keep going.";
+	  }
+	  # say $t2->year . " does not exist.";
+	  $opts{y}--;
+	  $r = $report{$t2->year} = {};
+	}
+	my @categories = split /\s*:+\s*/, $task;
+	addToLeaf( $r, $et, @categories );
+	#say Dumper(\%report);
+      }}
+    printReport(\%report);
+  }
+}
+
+
+
+__END__
+
+=head1 now
+
+now prog: docs      # Add task "prog: docs" to .now file.
+
+now 12 prog: plan   # Add task "prog: plan" with estimate 12 minutes.
+
+now                 # Print report.
+
+now -t 4            # Print report of the last 4 tasks
+
+now -d 4            # Print report of the last 4 days.
+
+now -w 4            # Print report of the last 4 weeks.
+
+now 5               # Estimate duration of task estimated to be 5 minutes.
+
+now 5 10 3          # Estimate the duration of tasks estimated to be 
+                    # 5, 10, and 3 minutes.
+
+sample - Using GetOpt::Long and Pod::Usage
+
+=head1 SYNOPSIS
+
+sample [options] [file ...]
+
+ Options:
+   -h|?             brief help message
+   --help | --man   full documentation
+   --version        print version and exit
+   -f mynowfile     use now file mynowfile (default is ~/.now)
+   -t 5             show 5 tosks
+   -d 5             show 5 days
+   -w 5             show 5 weeks
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-h>
+
+Print a brief help message and exits.
+
+=item B<--help>
+
+Prints the manual page and exits.
+
+=back
+
+=head1 DESCRIPTION
+
+B<now> is a simple, text-based, shell-based time tracker suitable for 
+tracking time at the terminal and completing time sheets. 
+Tasks are stored in a text file ~/.now. 
+Tasks are stored in the .now file, one task per line, prepended by a timestamp and 
+an optional estimate. 
+
+B<now> has three modes of use: 
+(1) real-time tracking mode, 
+(2) report mode, and 
+(3) estimation mode.
+
+To use the real-time tracking mode, call B<now> with the task. 
+The task will be appended the .now file with the current time.
+Call B<now> with a new task, or a "break" task when the current task is done.
+
+=over 4
+
+now programming: finish docs # start tracking "programming: docs" now
+
+=back
+
+You can also add an estimate (integer). 
+
+=over 4
+
+now 10 my task # start tracking "my task" now, estimate 10 minutes
+
+=back
+
+Use the -d, -w, or -t options for report mode. This will print a report of the last n days, weeks, or tasks respectively. Colons (:) are used to mark task categories. Reports break down time spent hierachially in each category and task.
+
+Calling B<now> with a list of estimates will produce a time range based on past estimates in the now file. 
+
+=cut
