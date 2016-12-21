@@ -19,9 +19,10 @@ _now()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
     pCOMP_CWORD="$[COMP_CWORD-1]"
-    opts="--help --verbose --version"
+    opts="-t -w -d -y -f --help --verbose --minutes --hours-minutes --hours"
 
     if [[ ${cur} == -* ]] ; then
+        # COMPREPLY=( $(compgen -o nosort -W "$opts" -- ${cur}) ) # broken on mac
         COMPREPLY=( $(compgen -W "$opts" -- ${cur}) )
 	return 0
     fi

@@ -1,7 +1,7 @@
 #!/usr/local/bin/perl
 
 use strict;
-use v5.10;
+use v5.10; # allows use of say
 use Getopt::Long qw(GetOptions);
 use Pod::Usage qw(pod2usage);
 use Time::Piece;
@@ -10,10 +10,22 @@ use File::HomeDir;
 use Time::Seconds;
 use Scalar::Util qw(looks_like_number);
 
-my $default_nowfile = glob $ENV{NOWFILE} or File::HomeDir->my_home . ".now";
+sub getNowfile {
+  my $f = glob $ENV{NOW_FILE};
+  return $f if -e $f;
+  $f = File::HomeDir->my_home . "/Dropbox/.now";
+  return $f if -e $f;
+  $f = File::HomeDir->my_home . "/.now";
+  return $f if -e $f;
+  my $d = File::HomeDir->my_home . "/Dropbox";
+  return "$d/.now" if -d $d;
+  $d = File::HomeDir->my_home;
+  return "$d/.now" if -d $d;
+};
 
-  
-my %opts = (f=>$default_nowfile);
+# my %opts = (f=>getNowfile, breakword=>getBreakword);
+my %opts = (f=>getNowfile);
+
 ## Parse options and print usage if there is a syntax error,
 ## or if usage was explicitly requested.
 
@@ -23,10 +35,35 @@ my %opts = (f=>$default_nowfile);
 Getopt::Long::Configure ("bundling");
 GetOptions(\%opts,
 	   'h|?', 'help|man', 'version', 'verbose|v',
+	   'hours', 'minutes', 'hours-minutes',
+	   'silent|s', 'nobreak', 'breakword=s@',
+	   'estimates',
 	   't=i', 'w=i', 'd=i', 'y=i', 'f=s'
 	  )
   or pod2usage(2);
 # say Dumper(\%opts);
+
+sub setBreakword {
+  my @breakwords;
+  unshift @breakwords, split / *, */ for @{$opts{breakword}};
+  # say @breakwords . " breakwords from command line: " . join ',', @breakwords;
+
+  if (!@breakwords) {
+    @breakwords = split / *, */, $ENV{NOW_BREAK_WORD} if !@breakwords;
+    # say @breakwords . " breakwords from environment: " . join ',', @breakwords;
+  }
+
+  if (!@breakwords) {
+    @breakwords = ( "break" );
+    # say @breakwords . " breakwords as default: " . join ',', @breakwords;
+  }
+
+  $opts{breakword} = \@breakwords;
+};
+
+setBreakword;
+# say "breakword = @{$opts{breakword}}";
+
 
 pod2usage(-verbose => 1) if $opts{h};
 pod2usage(-verbose => 2) if $opts{help};
@@ -48,12 +85,13 @@ sub timestamp {
 }
 # say timestamp();
 
-sub parseTimestamp {
+sub parseTimestamp { # return a gmt of the localtime timestamp
   use Try::Tiny;
   my $s = shift(@_);
   try {
-    my $t = Time::Piece->strptime($s, "%Y-%m-%d %T"); 
-    # say "parseTimestamp($s) = $t";
+    my $t = Time::Piece->strptime($s, "%Y-%m-%d %T");
+    $t -= localtime->tzoffset; # convert to gmt
+    # say "parseTimestamp($s) = $t ";
     return $t;
   } catch {
     say "parseTimestamp: caught error $_";
@@ -66,18 +104,17 @@ sub parseTimestamp {
 my ($t1, $t2);
 
 sub parseLine {
-  my $t2 = shift(@_);
-  my $line = shift(@_);
+  my ($t2, $line) = @_;
   if (my($timestamp, $est, $task) = $line =~ /(\d+\-\d+\-\d+ \d+:\d+:\d+) ?(\d*) (.*)/) {
     my $t1 = parseTimestamp($timestamp);
-      if ($t1) {
-	my $et = sprintf("%.02f", ($t2 - $t1)/3600.0);
-	return ($t1, $et, $est, $task);
+    if ($t1) {
+      my $et = sprintf("%.2f", ($t2 - $t1)/3600.0);
+      return ($t1, $et, $est, $task);
       }}
   return ();
 };
 
-sub addToLeaf {
+sub addToTree {
   my ($tree, $et, @categories) = @_;
   for (@categories) {
     if (exists $tree->{$_}) {$tree = $tree->{$_};}
@@ -86,6 +123,30 @@ sub addToLeaf {
   $tree->{''} += $et;
 };
 
+sub printHours {
+  my ($hours, $est)= @_;
+  
+  my $output = '';
+  if ($opts{"hours-minutes"}) {
+    $output .= sprintf("%6d:%02d", int($hours), ($hours - int($hours))*60.0);
+    $output .= sprintf("/%6d:%02d", int($est), ($est - int($est))*60.0) if $opts{estimates};
+    $output .= " ";
+    
+  }
+  if ($opts{minutes}) {
+    $output .= sprintf("%10.0f min", $hours * 60.0);
+    $output .= sprintf("/%10.0f min", $est * 60.0) if $opts{estimates};
+    $output .= " ";
+  }
+  if ($opts{hours} or !$output) {
+    $output .= sprintf("%8.2f hrs", $hours);
+    $output .= sprintf("/%8.2f hrs", $est) if $opts{estimates};
+    $output .= " ";
+  }
+  return $output;
+};
+
+      
 my @output_lines; # this needs to be global, declaring it inside printReport gives scoping errs.
 sub printReport {
   my $r = shift(@_);
@@ -101,36 +162,35 @@ sub printReport {
     for my $k ( @sorted_keys ) {
       if (ref($r->{$k}) eq 'HASH') {
 	if (scalar keys %{ $r->{$k} } == 1 and exists $r->{$k}->{''}) {
-	  my $t = sprintf("%8.2f", $r->{$k}->{''});
-	  # unshift @output_lines, "  " x $level . "$k: $t hrs";
-	  unshift @output_lines, "$prefix  $t hrs  $suffix $k";
+	  # say "Leaf category, printing hours for $suffix $k";
+	  # my $t = sprintf("%8.2f", $r->{$k}->{''});
+	  unshift @output_lines, "$prefix         " . printHours($r->{$k}->{''}) . "$suffix $k";
 	  $sum += $r->{$k}->{''};
 	} else {
-	  # my $total = _p($level + 1, $r->{$k});
+	  # say "Aggregate category, find totals and print summary for $suffix $k";
 	  my $total = _p("$prefix", "$suffix $k:", $r->{$k});
-	  my $t = sprintf("%8.2f", $total);
-	  # unshift @output_lines, "  " x $level . "$k ($total hrs)";
-	  unshift @output_lines, "$prefix ($t hrs) $suffix $k";
+	  # my $t = sprintf("%8.2f", $total);
+	  unshift @output_lines, "$prefix ". printHours($total) . "(total) $suffix $k";
 	  $sum += $total;
 	}
       } else {
-	my $t = sprintf("%8.2f", $r->{$k});
-	unshift @output_lines, "$prefix:'' $t hrs";
+	# say "True leaf, print hours for $suffix $k";
+	# my $t = sprintf("%8.2f", $r->{$k});
+	unshift @output_lines, "$prefix         " . printHours($r->{$k}) . "$suffix $k";
 	$sum += $r->{$k};
       }
     }
-    # unshift @output_lines, "  " x $level . "Total: $sum";
     return $sum;
   };
   # _p(0, $r);
-  for my $k (keys %{ $r }) {
+  for my $k (reverse sort keys %{ $r }) {
     my $t = sprintf("%8.02f", _p($k, "", $r->{$k}));
-    unshift @output_lines, "\n$k ($t hrs)";
+    unshift @output_lines, "\n$k $t hrs (total)";
   }
   say for @output_lines;
 };
 
-sub get_velocities { # get some velocities to simulate with
+sub getVelocities { # get some velocities to simulate with
   # use the n most recent
   my $n = 1000;
   
@@ -155,7 +215,7 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
   if ( (grep { looks_like_number($_) } @ARGV) == @ARGV ) { # test lengths
     # say "all args are numbers - Simulate";
     say "Simulating . . . ";
-    my @velocities = get_velocities();
+    my @velocities = getVelocities();
     # say "velocities = " . join ',', @velocities;
     
     my @times;
@@ -169,9 +229,15 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
     say "     5%     15%     25%     35%     45%     55%     65%     75%     85%     95%";
     say join ', ', grep { not ( $i++ % 10 ) } sort { $a <=> $b } @times;
   } else {
-    say "NOT all args are numbers - Add a task";
+    # say "NOT all args are numbers - Add a task";
+    my $task = join ' ', @ARGV;
+    if (!$opts{silent}) {
+      my $n = 10;
+      say "adding task $task, the last $n tasks in $opts{f} are:\n";
+      $opts{t} = $n if (!$opts{t});
+    }
     open(my $fh, '>>', $opts{f}) or die "Could not open file '$opts{f}' $!";
-    say $fh timestamp() . " " . join ' ', @ARGV;
+    say $fh timestamp() . " " . $task;
     close $fh; 
   }
 }
@@ -189,7 +255,8 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
     while( <BW> ) {
       chomp;
       if (my ($t2, $et, $est, $task) = parseLine($t2, $_)) {
-	unshift @output_lines, "$t2 for $et hrs: $task";
+	say "$t2, $et, $est, $task";
+	unshift @output_lines, "$t2 for ".printHours($et)." $task";
 	last if $opts{t}-- <= 0;
       }}
     say for @output_lines;
@@ -223,12 +290,16 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
     my %report;
     tie *BW, 'File::ReadBackwards', $opts{f} or
       die "can't read .now file ($opts{f}) $!" ;
-    my $t2 = localtime;
+    my $t2 = gmtime;
     while( <BW> ) {
       chomp;
+      # $t2 = gmtime if $breakflag;
       if (my ($nextt2, $et, $est, $task) = parseLine($t2, $_)) {
 	if ($opts{verbose}) { unshift @processed_lines, "$t2 $et $est $task"; }
 	$t2 = $nextt2;
+
+	# if we're processing a break, skip it.
+	next if !$opts{nobreak} and grep /^$task$/, @{$opts{breakword}};
 	
 	my $r;
 	if (exists $report{$t2->$field}) {
@@ -241,7 +312,7 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
 	  $r = $report{$t2->$field} = {};
 	}
 	my @categories = split /\s*:+\s*/, $task;
-	addToLeaf( $r, $et, @categories );
+	addToTree( $r, $et, @categories );
 	# say Dumper(\%report);
       }}
     if ($opts{verbose}) { say for @processed_lines; say ""; }
@@ -279,14 +350,20 @@ sample - Using GetOpt::Long and Pod::Usage
 sample [options] [file ...]
 
  Options:
-   -h|?             brief help message
-   --help | --man   full documentation
-   --version        print version and exit
-   --verbose | -v   print processed lines before reports
-   -f mynowfile     use now file mynowfile (default is ~/.now)
-   -t 5             show 5 tosks
-   -d 5             show 5 days
-   -w 5             show 5 weeks
+   -h|?              brief help message
+   --help | --man    full documentation
+   --version         print version and exit
+   --verbose | -v    print processed lines before reports
+   --hours           print report in hours (default)
+   --minutes         print report in minutes instead of hours
+   --hours-minutes   print report in hours and minutes instead of hours
+   --nobreak         do not skip breaks
+   --breakword stop  use "stop" as the breakword instead of "break".
+   --estimates       show estimates when reporting
+   -f mynowfile      use now file mynowfile (default is ~/.now)
+   -t 5              show 5 tosks
+   -d 5              show 5 days
+   -w 5              show 5 weeks
 
 =head1 OPTIONS
 
@@ -300,14 +377,20 @@ Print a brief help message and exits.
 
 Prints the manual page and exits.
 
+=item B<--breakword stop>
+
+Use "stop" as the breakword instead of the default or the environment-defined breakword.
+Multiple words can be defined by separating with commas or using multiple --breakword options.
+The default breakword is "break".
+The default breakword can be set by the environment variable "NOW_BREAK_WORD".
+
 =back
 
 =head1 DESCRIPTION
 
 B<now> is a simple, text-based, shell-based time tracker suitable for 
 tracking time at the terminal and completing time sheets. 
-Tasks are stored in a text file ~/.now. 
-(To customize use the -f flag or set the NOWFILE environment variable.)
+Tasks are stored in a text file ~/Dropbox/.now or ~/.now.
 Tasks are stored in the .now file, one task per line, prepended by a timestamp and 
 an optional estimate. You can easily edit this file by hand. This utility just 
 makes common tasks easier.
@@ -338,5 +421,21 @@ now 10 my task # start tracking "my task" now, estimate 10 minutes
 Use the -d, -w, or -t options for report mode. This will print a report of the last n days, weeks, or tasks respectively. Colons (:) are used to mark task categories. Reports break down time spent hierachially in each category and task. The -v or --verbose option will print the tasks processed before the report.
 
 Calling B<now> with a list of estimates will produce a time range based on past estimates in the now file. 
+
+=head1 CUSTOMIZATION
+
+=item B<.now>
+
+To customize the .now file, set the NOW_FILE environment variable or use the -f flag. 
+Specifically, add the following line to your ~/.profile: 
+
+=over 4
+
+export NOW_FILE=~/.now
+
+=back
+
+=item B<break
+
 
 =cut
