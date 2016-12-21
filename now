@@ -339,7 +339,8 @@ B<now> is a simple, text-based, shell-based time tracker suitable for
 tracking time at the terminal and completing time sheets. 
 Tasks are stored in a text file ~/.now. 
 Tasks are stored in the .now file, one task per line, prepended by a timestamp and 
-an optional estimate. 
+an optional estimate. You can easily edit this file by hand. This utility just 
+makes common tasks easier.
 
 B<now> has three modes of use: 
 (1) real-time tracking mode, 
