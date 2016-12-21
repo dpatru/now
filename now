@@ -86,34 +86,47 @@ sub addToLeaf {
   $tree->{''} += $et;
 };
 
+my @output_lines; # this needs to be global, declaring it inside printReport gives scoping errs.
 sub printReport {
   my $r = shift(@_);
-  my @output_lines;
+  # say "printReport " . Dumper($r);
+  @output_lines = (); # reset output lines
   sub _p {
-    my ($level, $r) = @_;
+    # my ($level, $r) = @_;
+    my ($prefix, $suffix, $r) = @_;
+    @_ = ();
     my $sum = 0;
     # say "level = $level: " . Dumper($r);
     my @sorted_keys = reverse sort keys %{ $r };
     for my $k ( @sorted_keys ) {
       if (ref($r->{$k}) eq 'HASH') {
 	if (scalar keys %{ $r->{$k} } == 1 and exists $r->{$k}->{''}) {
-	  my $t = $r->{$k}->{''};
-	  unshift @output_lines, "  " x $level . "$k: $t";
-	  $sum += $t;
+	  my $t = sprintf("%8.2f", $r->{$k}->{''});
+	  # unshift @output_lines, "  " x $level . "$k: $t hrs";
+	  unshift @output_lines, "$prefix  $t hrs  $suffix $k";
+	  $sum += $r->{$k}->{''};
 	} else {
-	  my $total = _p($level + 1, $r->{$k});
-	  unshift @output_lines, "  " x $level . "$k: ($total)";
+	  # my $total = _p($level + 1, $r->{$k});
+	  my $total = _p("$prefix", "$suffix $k:", $r->{$k});
+	  my $t = sprintf("%8.2f", $total);
+	  # unshift @output_lines, "  " x $level . "$k ($total hrs)";
+	  unshift @output_lines, "$prefix ($t hrs) $suffix $k";
 	  $sum += $total;
 	}
       } else {
-	unshift @output_lines, "  " x $level . "'': $r->{$k}";
+	my $t = sprintf("%8.2f", $r->{$k});
+	unshift @output_lines, "$prefix:'' $t hrs";
 	$sum += $r->{$k};
       }
     }
     # unshift @output_lines, "  " x $level . "Total: $sum";
     return $sum;
   };
-  _p(0, $r);
+  # _p(0, $r);
+  for my $k (keys %{ $r }) {
+    my $t = sprintf("%8.02f", _p($k, "", $r->{$k}));
+    unshift @output_lines, "\n$k ($t hrs)";
+  }
   say for @output_lines;
 };
 
@@ -166,7 +179,6 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
 if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
   use File::ReadBackwards ;
   # Tied Handle Interface
-  my ($t2, $et, $est, $task);
 
   if ($opts{t}) { # task report
     $t2 = localtime;
@@ -176,123 +188,61 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
 
     while( <BW> ) {
       chomp;
-      if (($t2, $et, $est, $task) = parseLine($t2, $_)) {
+      if (my ($t2, $et, $est, $task) = parseLine($t2, $_)) {
 	unshift @output_lines, "$t2 for $et hrs: $task";
 	last if $opts{t}-- <= 0;
       }}
     say for @output_lines;
   }
 
-  my @processed_lines; # store processed lines here for verbose option
-  
   if ($opts{d}) { # daily report
-    $t2 = localtime;
-    my @output_lines;
-    my %report;
-    tie *BW, 'File::ReadBackwards', $opts{f} or
-      die "can't read .now file ($opts{f}) $!" ;
-    while( <BW> ) {
-      chomp;
-      my $nextt2;
-      if (($nextt2, $et, $est, $task) = parseLine($t2, $_)) {
-	if ($opts{verbose}) { unshift @processed_lines, "$t2 $et $est $task"; }
-	$t2 = $nextt2;
-	
-	my $r;
-	if (exists $report{$t2->date}) {
-	  $r = $report{$t2->date};
-	  # say $t2->date . " exists: " . Dumper($r);
-	} else {
-	  # say $t2->date . " does not exist.";
-	  if ($opts{d} <= 0) {
-	    # say $opts{d} . " <= 0, quitting.";
-	    last;
-	  } else {
-	    # say $opts{d} . " > 0, keep going.";
-	  }
-	  $opts{d}--;
-	  $r = $report{$t2->date} = {};
-	}
-	my @categories = split /\s*:+\s*/, $task;
-	addToLeaf( $r, $et, @categories );
-	#say Dumper(\%report);
-      }}
-    
-    if ($opts{verbose}) { say for @processed_lines; say ""; }
-    printReport(\%report);
+    # say "daily";
+    generate_report("date", $opts{d});
   }
-
   if ($opts{w}) { # weekly report
-    $t2 = localtime;
-    my @output_lines;
-    my %report;
-    tie *BW, 'File::ReadBackwards', $opts{f} or
-      die "can't read .now file ($opts{f}) $!" ;
-    while( <BW> ) {
-      chomp;
-      my $nextt2;
-      if (($nextt2, $et, $est, $task) = parseLine($t2, $_)) {
-	if ($opts{verbose}) { unshift @processed_lines, "$t2 $et $est $task"; }
-	$t2 = $nextt2;
-
-	my $r;
-	my $week_number = $t2->year . " week " . $t2->week . " beginning " .
-	  ($t2 - $t2->_wday * ONE_DAY)->date;
-	if (exists $report{$week_number}) {
-	  $r = $report{$week_number};
-	  # say $week_number . " exists.";
-
-	} else {
-	  if ($opts{w} <= 0) {
-	    # say $opts{w} . " <= 0, quitting.";
-	    last;
-	  } else {
-	    # say $opts{w} . " > 0, keep going.";
-	  }
-	  # say $week_number . " does not exist.";
-	  $opts{w}--;
-	  $r = $report{$week_number} = {};
-	}
-	my @categories = split /\s*:+\s*/, $task;
-	addToLeaf( $r, $et, @categories );
-	#say Dumper(\%report);
-      }}
-    if ($opts{verbose}) { say for @processed_lines; say ""; }
-    printReport(\%report);
+    # say "weekly";
+    generate_report(sub {
+		      my $t = $_[0];
+		      return $t->year . " week " . $t->week . " beginning " .
+			    ($t - $t->_wday * ONE_DAY)->date; },
+		    $opts{w});
   }
-
   if ($opts{y}) { # yearly report
-    $t2 = localtime;
-    my @output_lines;
+    generate_report("year", $opts{y});
+  }
+  sub generate_report {
+    my ($field, $n) = @_;
+    my @processed_lines; # store processed lines here for verbose option
+
+    # say "$t2->$field";
+    # say $t2->$field;
+    # say $t2->$field();
+    # #say $field($t2);
+    # say $field->($t2);
+    
     my %report;
     tie *BW, 'File::ReadBackwards', $opts{f} or
       die "can't read .now file ($opts{f}) $!" ;
+    my $t2 = localtime;
     while( <BW> ) {
       chomp;
-      my $nextt2;
-      if (($nextt2, $et, $est, $task) = parseLine($t2, $_)) {
+      if (my ($nextt2, $et, $est, $task) = parseLine($t2, $_)) {
 	if ($opts{verbose}) { unshift @processed_lines, "$t2 $et $est $task"; }
 	$t2 = $nextt2;
 	
 	my $r;
-	if (exists $report{$t2->year}) {
-	  $r = $report{$t2->year};
-	  # say $t2->year . " exists.";
+	if (exists $report{$t2->$field}) {
+	  $r = $report{$t2->$field};
+	  # say $t2->$field . " exists.";
 
 	} else {
-	  if ($opts{y} <= 0) {
-	    # say $opts{y} . " <= 0, quitting.";
-	    last;
-	  } else {
-	    # say $opts{y} . " > 0, keep going.";
-	  }
-	  # say $t2->year . " does not exist.";
-	  $opts{y}--;
-	  $r = $report{$t2->year} = {};
+	  # say $t2->$field . " does not exist.";
+	  last if $n-- <= 0;
+	  $r = $report{$t2->$field} = {};
 	}
 	my @categories = split /\s*:+\s*/, $task;
 	addToLeaf( $r, $et, @categories );
-	#say Dumper(\%report);
+	# say Dumper(\%report);
       }}
     if ($opts{verbose}) { say for @processed_lines; say ""; }
     printReport(\%report);
