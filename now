@@ -27,6 +27,11 @@ sub getNowfile {
 # my %opts = (f=>getNowfile, breakword=>getBreakword);
 my %opts = (f=>getNowfile);
 
+if (@ARGV == 0) {
+  say "The last few tasks are . . .";
+  $opts{t}=10;
+}
+
 ## Parse options and print usage if there is a syntax error,
 ## or if usage was explicitly requested.
 
@@ -39,6 +44,7 @@ GetOptions(\%opts,
 	   'hours', 'minutes', 'hours-minutes',
 	   'silent|s', 'nobreak', 'breakword=s@',
 	   'estimates', 'noestimates',
+	   'DEBUG',
 	   't=i', 'w=i', 'd=i', 'y=i', 'f=s'
 	  )
   or pod2usage(2);
@@ -47,16 +53,16 @@ GetOptions(\%opts,
 sub setBreakword {
   my @breakwords;
   unshift @breakwords, split / *, */ for @{$opts{breakword}};
-  # say @breakwords . " breakwords from command line: " . join ',', @breakwords;
+  # say @breakwords . " breakwords from command line: " . join ',', @breakwords if $opts{DEBUG};
 
   if (!@breakwords) {
     @breakwords = split / *, */, $ENV{NOW_BREAK_WORD} if !@breakwords;
-    # say @breakwords . " breakwords from environment: " . join ',', @breakwords;
+    # say @breakwords . " breakwords from environment: " . join ',', @breakwords if $opts{DEBUG};
   }
 
   if (!@breakwords) {
     @breakwords = ( "break" );
-    # say @breakwords . " breakwords as default: " . join ',', @breakwords;
+    # say @breakwords . " breakwords as default: " . join ',', @breakwords if $opts{DEBUG};
   }
 
   $opts{breakword} = \@breakwords;
@@ -66,14 +72,14 @@ setBreakword;
 
 sub setEstimates {
   if ($opts{estimates}) {
-    say "estimates set by commandline";
+    # say "estimates set by commandline" if $opts{DEBUG};
     return;
   }
   elsif ( $opts{noestimates} ) {
-    say "estimates unset by commandline";
+    # say "estimates unset by commandline" if $opts{DEBUG};
     return; }
   elsif ( $ENV{NOW_ESTIMATES} ) {
-    say "estimates set by environment";
+    # say "estimates set by environment" if $opts{DEBUG};
     $opts{estimates} = 1;
   }
 };
@@ -300,7 +306,7 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
     while( <BW> ) {
       chomp;
       if (my ($t2, $et, $est, $task) = parseLine($t2, $_)) {
-	say "$t2, $et, $est, $task";
+	# say "$t2, $et, $est, $task";
 	unshift @output_lines, timestamp($t2) . " for ".printHours([$et,$est])." $task";
 	last if $opts{t}-- <= 0;
       }}
@@ -368,23 +374,23 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
 
 __END__
 
-=head1 now
+=head1 now EXAMPLES
 
-now prog: docs      # Add task "prog: docs" to .now file.
+B<now prog: docs>      # Add task "prog: docs" to .now file.
 
-now 12 prog: plan   # Add task "prog: plan" with estimate 12 minutes.
+B<now 12 prog: plan>   # Add task "prog: plan" with estimate 12 minutes.
 
-now                 # Print report.
+B<now>                 # Print report.
 
-now -t 4            # Print report of the last 4 tasks
+B<now -t 4>            # Print report of the last 4 tasks
 
-now -d 4            # Print report of the last 4 days.
+B<now -d 4>            # Print report of the last 4 days.
 
-now -w 4            # Print report of the last 4 weeks.
+B<now -w 4>            # Print report of the last 4 weeks.
 
-now 5               # Estimate duration of task estimated to be 5 minutes.
+B<now 5>               # Estimate duration of task estimated to be 5 minutes.
 
-now 5 10 3          # Estimate the duration of tasks estimated to be 
+B<now 5 10 3>          # Estimate the duration of tasks estimated to be 
                     # 5, 10, and 3 hours.
 
 sample - Using GetOpt::Long and Pod::Usage
