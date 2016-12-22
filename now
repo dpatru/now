@@ -49,6 +49,7 @@ GetOptions(\%opts,
 	   'hours', 'minutes', 'hours-minutes',
 	   'silent|s', 'nobreak', 'breakword=s@',
 	   'estimates', 'noestimates',
+	   'sunday', 'monday',
 	   'DEBUG', 'NODEBUG',
 	   't=i', 'w=i', 'd=i', 'y=i', 'f=s'
 	  )
@@ -87,7 +88,7 @@ sub setOption {
 setOption("DEBUG", "NODEBUG", "NOW_DEBUG");
 setOption("estimates", "noestimates", "NOW_ESTIMATES");
 setOption("verbose", "noverbose", "NOW_VERBOSE");
-
+setOption("sunday", "monday", "NOW_SUNDAY");
   
 sub setBreakword {
   my @breakwords;
@@ -424,9 +425,19 @@ sub getWeek {
   # January is the 2nd, 3rd, or 4th, the preceding days of the January
   # are part of the last week of the preceding year. Week numbers
   # range from 1 to 53.
+  #
+  # Allow the option to start the week on Sunday, but keep the week number the same.
   my $t = shift @_;
-  return $t->year . " week " . $t->week . " beginning " .
-    ($t - ($t->_wday-1) * ONE_DAY)->date;
+  
+  # If it's Sunday, then bump up the time to Monday so that the week number is correct.
+  my $t2 = $opts{sunday} && $t->_wday == 0? $t + * ONE_DAY: $t;
+
+  my $firstday = $opts{sunday}? $t - $t->_wday * ONE_DAY:
+    $t - ($t->_wday - 1)*ONE_DAY;
+
+  my $r = $t2->year . " week " . $t2->week . " beginning " .
+    $firstday->wdayname . " " . $firstday->date;
+  return $r;
 };
       
 
@@ -470,6 +481,8 @@ sample [options] [file ...]
    --breakword stop  use "stop" as the breakword instead of "break".
    --estimates       show estimates when reporting
    --noestimates     turn off estimates when reporting
+   --sunday          start the week on sunday for weekly reports
+   --monday          start the week on monday (default)
    -f mynowfile      use now file mynowfile (default is ~/.now)
    -t 5              show 5 tosks
    -d 5              show 5 days
@@ -487,14 +500,38 @@ Print a brief help message and exits.
 
 Prints the manual page and exits.
 
-=item B<--breakword stop>
+=item B<--breakword stop,quit>
 
-Use "stop" as the breakword instead of the default or the environment-defined breakword.
-Multiple words can be defined by separating with commas or using multiple --breakword options.
-The default breakword is "break".
-The default breakword can be set by the environment variable "NOW_BREAK_WORD".
+Use "stop" or "quit" as breakwords instead of the default or the
+environment-defined breakword.  Multiple words can be defined by
+separating with commas or using multiple --breakword options.  The
+default breakword is "break".  The default breakword can be set by the
+environment variable "NOW_BREAK_WORD".  
+
+Breakwords are used to end a task without starting a new one. Breaks
+are normally ignored when reporting. 
+
+=item B<--sunday, --nosunday>
+
+For weekly reporting, the week starts on Monday. According to 
+http://perldoc.perl.org/Time/Piece.html#Week-Number: 
+
+=over 4
+
+The week number may be an unknown concept to some readers. The ISO
+8601 standard defines that weeks begin on a Monday and week 1 of the
+year is the week that includes both January 4th and the first Thursday
+of the year. In other words, if the first Monday of January is the
+2nd, 3rd, or 4th, the preceding days of the January are part of the
+last week of the preceding year. Week numbers range from 1 to 53.
 
 =back
+
+Use the B<--sunday> option to start the week on Sunday for weekly
+reports. The number of the week will still follow ISO 8601, but Sunday
+will be treated as belonging to the following week (that starts the
+next Monday.) This can also be set with the environment variable
+NOW_SUNDAY=1.
 
 =head1 DESCRIPTION
 
@@ -509,6 +546,8 @@ B<now> has three modes of use:
 (1) real-time tracking mode, 
 (2) report mode, and 
 (3) estimation mode.
+
+=head2 REAL-TIME TRACKING
 
 To use the real-time tracking mode, call B<now> with the task. 
 The task will be appended the .now file with the current time.
@@ -528,42 +567,39 @@ now 10 my task # start tracking "my task" now, estimate 10 minutes
 
 =back
 
+=head2 REPORTING
+
 Use the -d, -w, or -t options for report mode. This will print a report of the last n days, weeks, or tasks respectively. Colons (:) are used to mark task categories. Reports break down time spent hierachially in each category and task. The -v or --verbose option will print the tasks processed before the report.
 
-Calling B<now> with a list of estimates will produce a time range based on past estimates in the now file. 
+=head2 ESTIMATING
+
+Calling B<now> with a list of estimates will produce a time range
+based on past estimates in the now file. See evidence-based scheduling
+and http://www.joelonsoftware.com/items/2007/10/26.html.
 
 =head1 CUSTOMIZATION
 
-=item B<.now>
-
-To customize the .now file, set the NOW_FILE environment variable or use the -f flag. 
-Specifically, add the following line to your ~/.profile: 
+You can set some options using environment variables. The following is a sample ~/.profile.
 
 =over 4
 
-export NOW_FILE=~/.now
+# set the .now file to ~/mydir/.now
+export NOW_FILE=~/mydir/.now
 
-=back
-
-=item B<breakword>
-
-To customize the break word, add the following line to you ~/.profile:
-
-=over 4
-
+# Treat stop, break, quit, and done as breakwords.
 export NOW_BREAK_WORD=stop,break,quit,done
 
-=back
-
-=item B<estimates>
-
-To set estimates on automatically, add the following line to you ~/.profile:
-
-=over 4
-
+# Include estimates in reports.
 export NOW_ESTIMATES=1
 
+# Start weeks on Sunday.
+export NOW_SUNDAY=1
+
+# Start weeks on Monday.
+export NOW_SUNDAY=0
+
 =back
+
 
 
 
