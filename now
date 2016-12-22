@@ -36,7 +36,7 @@ if (@ARGV == 0) {
 ## or if usage was explicitly requested.
 
 # say Dumper(\%opts);
-# say "Argv is " . join ' ', @ARGV;
+# say "Argv is "
 
 Getopt::Long::Configure ("bundling");
 GetOptions(\%opts,
@@ -44,49 +44,11 @@ GetOptions(\%opts,
 	   'hours', 'minutes', 'hours-minutes',
 	   'silent|s', 'nobreak', 'breakword=s@',
 	   'estimates', 'noestimates',
-	   'DEBUG',
+	   'DEBUG', 'NODEBUG',
 	   't=i', 'w=i', 'd=i', 'y=i', 'f=s'
 	  )
   or pod2usage(2);
 # say Dumper(\%opts);
-
-sub setBreakword {
-  my @breakwords;
-  unshift @breakwords, split / *, */ for @{$opts{breakword}};
-  # say @breakwords . " breakwords from command line: " . join ',', @breakwords if $opts{DEBUG};
-
-  if (!@breakwords) {
-    @breakwords = split / *, */, $ENV{NOW_BREAK_WORD} if !@breakwords;
-    # say @breakwords . " breakwords from environment: " . join ',', @breakwords if $opts{DEBUG};
-  }
-
-  if (!@breakwords) {
-    @breakwords = ( "break" );
-    # say @breakwords . " breakwords as default: " . join ',', @breakwords if $opts{DEBUG};
-  }
-
-  $opts{breakword} = \@breakwords;
-};
-
-setBreakword;
-
-sub setEstimates {
-  if ($opts{estimates}) {
-    # say "estimates set by commandline" if $opts{DEBUG};
-    return;
-  }
-  elsif ( $opts{noestimates} ) {
-    # say "estimates unset by commandline" if $opts{DEBUG};
-    return; }
-  elsif ( $ENV{NOW_ESTIMATES} ) {
-    # say "estimates set by environment" if $opts{DEBUG};
-    $opts{estimates} = 1;
-  }
-};
-setEstimates;
-  
-# say "breakword = @{$opts{breakword}}";
-
 
 pod2usage(-verbose => 1) if $opts{h};
 pod2usage(-verbose => 2) if $opts{help};
@@ -98,6 +60,50 @@ if ($opts{version}) {
 
 pod2usage("$0: options t, w, and d accept only non-negative integers.")
   if $opts{t} < 0 || $opts{d} < 0 || $opts{w} < 0;
+
+
+sub setOption {
+  my ($option, $nooption, $env) = @_;
+  if ($opts{$option}) {
+    say "$option set by commandline" if $opts{DEBUG};
+    return;
+  }
+  elsif ( $opts{$nooption} ) {
+    $opts{$option} = 0;
+    say "$option unset by commandline" if $opts{DEBUG};
+    return;
+  }
+  elsif ( exists $ENV{$env} ) {
+    $opts{$option} = $ENV{$env};
+    say "$option set by environment to $ENV{$env}" if $opts{DEBUG};
+  }
+};
+
+setOption("DEBUG", "NODEBUG", "NOW_DEBUG");
+setOption("estimates", "noestimates", "NOW_ESTIMATES");
+  
+sub setBreakword {
+  my @breakwords;
+  unshift @breakwords, split / *, */ for @{$opts{breakword}};
+  say @breakwords . " breakwords from command line: " . join ',', @breakwords if $opts{DEBUG};
+
+  if (!@breakwords) {
+    @breakwords = split / *, */, $ENV{NOW_BREAK_WORD} if !@breakwords;
+    say @breakwords . " breakwords from environment: " . join ',', @breakwords if $opts{DEBUG};
+  }
+
+  if (!@breakwords) {
+    @breakwords = ( "break" );
+    say @breakwords . " breakwords as default: " . join ',', @breakwords if $opts{DEBUG};
+  }
+
+  $opts{breakword} = \@breakwords;
+};
+
+setBreakword;
+
+# say "breakword = @{$opts{breakword}}";
+
 
 # say "Argv is " . join ' ', @ARGV;
 
@@ -299,14 +305,14 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
 
   if ($opts{t}) { # task report
     $t2 = localtime;
-    my @output_lines;
+    my @output_lines = ();
     tie *BW, 'File::ReadBackwards', $opts{f} or
       die "can't read .now file ($opts{f}) $!" ;
 
     while( <BW> ) {
       chomp;
       if (my ($t2, $et, $est, $task) = parseLine($t2, $_)) {
-	# say "$t2, $et, $est, $task";
+	say "$t2, $et, $est, $task";
 	unshift @output_lines, timestamp($t2) . " for ".printHours([$et,$est])." $task";
 	last if $opts{t}-- <= 0;
       }}
