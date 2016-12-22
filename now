@@ -144,7 +144,7 @@ my ($t1, $t2);
 
 sub parseLine {
   my ($t2, $line) = @_;
-  if (my($timestamp, $est, $task) = $line =~ /(\d+\-\d+\-\d+ \d+:\d+:\d+) ?([\d\.-]*) (.*)/) {
+  if (my($timestamp, $est, $task) = $line =~ /(\d+\-\d+\-\d+ \d+:\d+:\d+)\s*([\d\.-]*)\s+(.*)/) {
     my $t1 = parseTimestamp($timestamp);
     if ($t1) {
       my $et = sprintf("%.2f", ($t2 - $t1)/3600.0);
