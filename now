@@ -10,6 +10,7 @@ use File::HomeDir;
 use Time::Seconds;
 use Scalar::Util qw(looks_like_number);
 use List::Util qw(sum);
+use Carp::Assert qw(assert should);
 
 sub getNowfile {
   my $f = glob $ENV{NOW_FILE};
@@ -24,7 +25,6 @@ sub getNowfile {
   return "$d/.now" if -d $d;
 };
 
-# my %opts = (f=>getNowfile, breakword=>getBreakword);
 my %opts = (f=>getNowfile);
 
 if (@ARGV == 0) {
@@ -81,6 +81,8 @@ sub setOption {
 
 setOption("DEBUG", "NODEBUG", "NOW_DEBUG");
 setOption("estimates", "noestimates", "NOW_ESTIMATES");
+setOption("verbose", "noverbose", "NOW_VERBOSE");
+
   
 sub setBreakword {
   my @breakwords;
@@ -102,29 +104,33 @@ sub setBreakword {
 
 setBreakword;
 
-# say "breakword = @{$opts{breakword}}";
-
-
 # say "Argv is " . join ' ', @ARGV;
 
-sub timestamp {
-  my $t = localtime;
-  return $t->date . ' ' . $t->time;
+sub timestampnow {
+  my $t = Time::Piece->new;
+  return timestamp($t);
 }
+
+sub timestamp {
+  my $t = shift @_;
+  return $t->date . ' ' . $t->time;
+};
 # say timestamp();
 
 sub parseTimestamp { # return a localtime of timestamp
   use Try::Tiny;
   my $s = shift(@_);
+  my $t;
   try {
-    my $t = Time::Piece->strptime($s, "%Y-%m-%d %T");
-    $t -= localtime->tzoffset; # convert to localtime
-    # say "parseTimestamp($s) = $t ";
-    return $t;
+    $t = Time::Piece->strptime($s, "%Y-%m-%d %T");
+    #$t += localtime->tzoffset; # convert to localtime
   } catch {
     say "parseTimestamp: caught error $_";
     return 0;
-  } 
+  };
+  # say "\nparseTimestamp($s) = $t = " . timestamp($t) . "\n" if $opts{DEBUG};
+  should($s, timestamp($t));
+  return $t;
 }
 
 # say parseTimestamp("2016-12-16 15:06:07");
@@ -133,12 +139,18 @@ my ($t1, $t2);
 
 sub parseLine {
   my ($t2, $line) = @_;
+  # say @_;
+  # say "$t2, $line";
+  # say timestamp($t2) . ", $line";
   if (my($timestamp, $est, $task) = $line =~ /(\d+\-\d+\-\d+ \d+:\d+:\d+) ?([\d\.-]*) (.*)/) {
     my $t1 = parseTimestamp($timestamp);
     if ($t1) {
       my $et = sprintf("%.2f", ($t2 - $t1)/3600.0);
-      return ($t1, $et, $est, $task);
-      }}
+      my @result = ($t1, $et, $est, $task);
+      say "parseline(" . timestamp($t2) . ", $line)->(". join ', ', @result . ")" if $opts{DEBUG};
+      return @result;
+    }}
+  say "parseline(" . join(', ', @_) . ")->()";
   return ();
 };
 
@@ -294,7 +306,7 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
       $opts{t} = $n if (!$opts{t});
     }
     open(my $fh, '>>', $opts{f}) or die "Could not open file '$opts{f}' $!";
-    say $fh timestamp() . " " . $task;
+    say $fh timestampnow() . " " . $task;
     close $fh; 
   }
 }
@@ -304,46 +316,30 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
   # Tied Handle Interface
 
   if ($opts{t}) { # task report
-    $t2 = localtime;
+    my ($t1, $t2, $et, $est, $task);
+    $t2 = gmtime; $t2 += localtime->tzoffset;
+    say "first t2 = $t2 = ". timestamp($t2) if $opts{DEBUG};
     my @output_lines = ();
     tie *BW, 'File::ReadBackwards', $opts{f} or
       die "can't read .now file ($opts{f}) $!" ;
-
     while( <BW> ) {
       chomp;
-      if (my ($t2, $et, $est, $task) = parseLine($t2, $_)) {
-	say "$t2, $et, $est, $task";
-	unshift @output_lines, timestamp($t2) . " for ".printHours([$et,$est])." $task";
-	last if $opts{t}-- <= 0;
+      say if $opts{DEBUG};
+      if (($t1, $et, $est, $task) = parseLine($t2, $_)) {
+	say timestamp($t1) . "=t1=$t1, $et, $est, $task - ". timestamp($t1)  if $opts{DEBUG};
+	my $line = timestamp($t1) . " for ".printHours([$et,$est])." $task";
+	$t2 = $t1;
+	say $line if $opts{DEBUG};
+	say "" if $opts{DEBUG};
+	unshift @output_lines, $line;
+	last if --$opts{t} <= 0;
       }}
     say for @output_lines;
   }
 
-  if ($opts{d}) { # daily report
-    # say "daily";
-    generateReport("date", $opts{d});
-  }
-  if ($opts{w}) { # weekly report
-    # say "weekly";
-    generateReport(sub {
-		      my $t = $_[0];
-		      return $t->year . " week " . $t->week . " beginning " .
-			    ($t - $t->_wday * ONE_DAY)->date; },
-		    $opts{w});
-  }
-  if ($opts{y}) { # yearly report
-    generateReport("year", $opts{y});
-  }
   sub generateReport {
     my ($field, $n) = @_;
     my @processed_lines; # store processed lines here for verbose option
-
-    # say "$t2->$field";
-    # say $t2->$field;
-    # say $t2->$field();
-    # #say $field($t2);
-    # say $field->($t2);
-    
     my %report;
     tie *BW, 'File::ReadBackwards', $opts{f} or
       die "can't read .now file ($opts{f}) $!" ;
@@ -353,16 +349,14 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
       if (my ($nextt2, $et, $est, $task) = parseLine($t2, $_)) {
 	if ($opts{verbose}) { unshift @processed_lines, "$t2 $et $est $task"; }
 	$t2 = $nextt2;
-
 	# if we're processing a break, skip it.
 	next if !$opts{nobreak} and grep /^$task$/, @{$opts{breakword}};
-	
 	my $r;
 	if (exists $report{$t2->$field}) {
 	  $r = $report{$t2->$field};
 	  # say $t2->$field . " exists.";
-
-	} else {
+	}
+	else {
 	  # say $t2->$field . " does not exist.";
 	  last if $n-- <= 0;
 	  $r = $report{$t2->$field} = {};
@@ -374,8 +368,35 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
     if ($opts{verbose}) { say for @processed_lines; say ""; }
     printReport(\%report);
   }
-}
 
+  if ($opts{d}) { # daily report
+    # say "daily";
+    generateReport("date", $opts{d});
+  }
+  if ($opts{w}) { # weekly report
+    # say "weekly";
+
+    generateReport(\&getWeek, $opts{w});
+  }
+  if ($opts{y}) { # yearly report
+    generateReport("year", $opts{y});
+  }
+};
+
+sub getWeek {
+  # http://perldoc.perl.org/Time/Piece.html#Week-Number: The week
+  # number may be an unknown concept to some readers. The ISO 8601
+  # standard defines that weeks begin on a Monday and week 1 of the
+  # year is the week that includes both January 4th and the first
+  # Thursday of the year. In other words, if the first Monday of
+  # January is the 2nd, 3rd, or 4th, the preceding days of the January
+  # are part of the last week of the preceding year. Week numbers
+  # range from 1 to 53.
+  my $t = shift @_;
+  return $t->year . " week " . $t->week . " beginning " .
+    ($t - ($t->_wday-1) * ONE_DAY)->date;
+};
+      
 
 
 __END__
