@@ -156,6 +156,17 @@ sub parseLine {
   return ();
 };
 
+sub formatLine {
+  my ($t, $et, $est, $task) = @_;
+  sprintf("%s %5.2f %5.2f %s", timestamp($t), $et, $est, $task);
+};
+
+sub formatLine_header {
+  return "date  time  duration estimate task";
+};
+    
+
+
 sub addToTree {
   my ($tree, $et, @categories) = @_;
   # saydebug "addToTree: " . join ', ', @{$et};
@@ -348,7 +359,9 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
     while( <BW> ) {
       chomp;
       if (my ($nextt2, $et, $est, $task) = parseLine($t2, $_)) {
-	if ($opts{verbose}) { unshift @processed_lines, "$t2 $et $est $task"; }
+	if ($opts{verbose}) {
+	  unshift @processed_lines, formatLine($t2, $et, $est, $task);
+	}
 	$t2 = $nextt2;
 	# if we're processing a break, skip it.
 	next if !$opts{nobreak} and grep /^$task$/, @{$opts{breakword}};
@@ -372,14 +385,16 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
 
   if ($opts{d}) { # daily report
     # say "daily";
+    $hourDigits = 2;
     generateReport("date", $opts{d});
   }
   if ($opts{w}) { # weekly report
     # say "weekly";
-
+    $hourDigits = 3;
     generateReport(\&getWeek, $opts{w});
   }
   if ($opts{y}) { # yearly report
+    $hourDigits = 4;
     generateReport("year", $opts{y});
   }
 };
