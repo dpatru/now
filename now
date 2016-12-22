@@ -27,6 +27,11 @@ sub getNowfile {
 
 my %opts = (f=>getNowfile);
 
+sub saydebug {
+  say "DEBUG: " . (join ' ', @_) if $opts{DEBUG};
+};
+
+
 if (@ARGV == 0) {
   say "The last few tasks are . . .";
   $opts{t}=10;
@@ -65,17 +70,17 @@ pod2usage("$0: options t, w, and d accept only non-negative integers.")
 sub setOption {
   my ($option, $nooption, $env) = @_;
   if ($opts{$option}) {
-    say "$option set by commandline" if $opts{DEBUG};
+    saydebug "$option set by commandline";
     return;
   }
   elsif ( $opts{$nooption} ) {
     $opts{$option} = 0;
-    say "$option unset by commandline" if $opts{DEBUG};
+    saydebug "$option unset by commandline";
     return;
   }
   elsif ( exists $ENV{$env} ) {
     $opts{$option} = $ENV{$env};
-    say "$option set by environment to $ENV{$env}" if $opts{DEBUG};
+    saydebug "$option set by environment to $ENV{$env}";
   }
 };
 
@@ -87,16 +92,16 @@ setOption("verbose", "noverbose", "NOW_VERBOSE");
 sub setBreakword {
   my @breakwords;
   unshift @breakwords, split / *, */ for @{$opts{breakword}};
-  say @breakwords . " breakwords from command line: " . join ',', @breakwords if $opts{DEBUG};
+  saydebug @breakwords . " breakwords from command line: " . join ',', @breakwords;
 
   if (!@breakwords) {
     @breakwords = split / *, */, $ENV{NOW_BREAK_WORD} if !@breakwords;
-    say @breakwords . " breakwords from environment: " . join ',', @breakwords if $opts{DEBUG};
+    saydebug @breakwords . " breakwords from environment: " . join ',', @breakwords;
   }
 
   if (!@breakwords) {
     @breakwords = ( "break" );
-    say @breakwords . " breakwords as default: " . join ',', @breakwords if $opts{DEBUG};
+    saydebug @breakwords . " breakwords as default: " . join ',', @breakwords;
   }
 
   $opts{breakword} = \@breakwords;
@@ -123,40 +128,37 @@ sub parseTimestamp { # return a localtime of timestamp
   my $t;
   try {
     $t = Time::Piece->strptime($s, "%Y-%m-%d %T");
-    #$t += localtime->tzoffset; # convert to localtime
+    # $t += localtime->tzoffset; # convert to localtime
   } catch {
     say "parseTimestamp: caught error $_";
     return 0;
   };
-  # say "\nparseTimestamp($s) = $t = " . timestamp($t) . "\n" if $opts{DEBUG};
+  # saydebug "\nparseTimestamp($s) = $t = " . timestamp($t) . "\n";
   should($s, timestamp($t));
   return $t;
 }
 
-# say parseTimestamp("2016-12-16 15:06:07");
+# saydebug parseTimestamp("2016-12-16 15:06:07");
 
 my ($t1, $t2);
 
 sub parseLine {
   my ($t2, $line) = @_;
-  # say @_;
-  # say "$t2, $line";
-  # say timestamp($t2) . ", $line";
   if (my($timestamp, $est, $task) = $line =~ /(\d+\-\d+\-\d+ \d+:\d+:\d+) ?([\d\.-]*) (.*)/) {
     my $t1 = parseTimestamp($timestamp);
     if ($t1) {
       my $et = sprintf("%.2f", ($t2 - $t1)/3600.0);
       my @result = ($t1, $et, $est, $task);
-      say "parseline(" . timestamp($t2) . ", $line)->(". join ', ', @result . ")" if $opts{DEBUG};
+      # saydebug "parseline(" . timestamp($t2) . ", $line)->(". (join ', ', @result) . ")";
       return @result;
     }}
-  say "parseline(" . join(', ', @_) . ")->()";
+  saydebug "parseline(" . join(', ', @_) . ")->()";
   return ();
 };
 
 sub addToTree {
   my ($tree, $et, @categories) = @_;
-  # say "addToTree: " . join ', ', @{$et};
+  # saydebug "addToTree: " . join ', ', @{$et};
   for (@categories) {
     if (exists $tree->{$_}) {$tree = $tree->{$_};}
     else {$tree = $tree->{$_} = {};}
@@ -212,8 +214,8 @@ sub printHours {
       
 my @output_lines; # this needs to be global, declaring it inside printReport gives scoping errs.
 sub printReport {
-  my $r = shift(@_);
-  # say "printReport " . Dumper($r);
+  my $r = shift @_;
+  # saydebug "printReport " . Dumper($r);
   @output_lines = (); # reset output lines
   sub _p {
     # my ($level, $r) = @_;
@@ -221,31 +223,31 @@ sub printReport {
     @_ = ();
     my $sum = 0;
     my $estsum = 0;
-    # say "level = $level: " . Dumper($r);
+    # saydebug "level = $level: " . Dumper($r);
     my @sorted_keys = reverse sort keys %{ $r };
     for my $k ( @sorted_keys ) {
       if (ref($r->{$k}) eq 'HASH') {
 	if (scalar keys %{ $r->{$k} } == 1 and exists $r->{$k}->{''}) {
-	  # say "Leaf category, printing hours for $suffix $k";
+	  # saydebug "Leaf category, printing hours for $suffix $k";
 	  unshift @output_lines, "$prefix         " . printHours($r->{$k}->{''}) . "$suffix $k";
 	  $sum += ${$r->{$k}->{''}}[0];
 	  $estsum += ${$r->{$k}->{''}}[1];
-	  # say "constructed leaf: sum = $sum, estsum = $estsum";
+	  # saydebug "constructed leaf: sum = $sum, estsum = $estsum";
 	} else {
-	  # say "Aggregate category, find totals and print summary for $suffix $k";
+	  # saydebug "Aggregate category, find totals and print summary for $suffix $k";
 	  my $total = _p("$prefix", "$suffix $k:", $r->{$k});
 	  unshift @output_lines, "$prefix ". printHours($total) . "(total) $suffix $k";
 	  $sum += ${$total}[0];
 	  $estsum += ${$total}[1];
-	  # say "aggregate: sum = $sum, estsum = $estsum";
+	  # saydebug "aggregate: sum = $sum, estsum = $estsum";
 	}
       } else {
-	# say "True leaf, print hours for $suffix $k";
+	# saydebug "True leaf, print hours for $suffix $k";
 	# my $t = sprintf("%8.2f", $r->{$k});
 	unshift @output_lines, "$prefix         " . printHours($r->{$k}) . "$suffix $k";
 	$sum += ${$r->{$k}}[0];
 	$estsum += ${$r->{$k}}[1];
-	# say "leaf: sum = $sum, estsum = $estsum";
+	# saydebug "leaf: sum = $sum, estsum = $estsum";
       }
     }
     return [$sum, $estsum];
@@ -318,19 +320,18 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
   if ($opts{t}) { # task report
     my ($t1, $t2, $et, $est, $task);
     $t2 = gmtime; $t2 += localtime->tzoffset;
-    say "first t2 = $t2 = ". timestamp($t2) if $opts{DEBUG};
+    # say "first t2 = $t2 = ". timestamp($t2) if $opts{DEBUG};
     my @output_lines = ();
     tie *BW, 'File::ReadBackwards', $opts{f} or
       die "can't read .now file ($opts{f}) $!" ;
     while( <BW> ) {
       chomp;
-      say if $opts{DEBUG};
+      # say "task report processing line: $_" if $opts{DEBUG};
       if (($t1, $et, $est, $task) = parseLine($t2, $_)) {
-	say timestamp($t1) . "=t1=$t1, $et, $est, $task - ". timestamp($t1)  if $opts{DEBUG};
+	# say "task report: " . timestamp($t1) . "=t1=$t1, $et, $est, $task - ". timestamp($t1)  if $opts{DEBUG};
 	my $line = timestamp($t1) . " for ".printHours([$et,$est])." $task";
 	$t2 = $t1;
-	say $line if $opts{DEBUG};
-	say "" if $opts{DEBUG};
+	# say $line if $opts{DEBUG};
 	unshift @output_lines, $line;
 	last if --$opts{t} <= 0;
       }}
