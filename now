@@ -329,9 +329,7 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
     # say "NOT all args are numbers - Add a task";
     my $task = join ' ', @ARGV;
     if (!$opts{silent}) {
-      my $n = 10;
-      say "adding task $task, the last $n tasks in $opts{f} are:\n";
-      # $opts{t} = $n if (!$opts{t});
+      say "adding: $task"
     }
     open(my $fh, '>>', $opts{f}) or die "Could not open file '$opts{f}' $!";
     say $fh timestampnow() . " " . $task;
