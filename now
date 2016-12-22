@@ -177,44 +177,48 @@ sub addToTree {
   $tree->{''} = $et; # $et can be a list or o scalar.
 };
 
+my $hourDigits = 8;
 sub printHours {
   my $arg = shift @_;
   my ($hours, $est)= @{$arg};
-  
   my $output = '';
   if ($opts{"hours-minutes"}) {
-    $output .= sprintf("%6d:%02d", int($hours), ($hours - int($hours))*60.0);
+    $output .= sprintf("%${hourDigits}d:%02d", int($hours), ($hours - int($hours))*60.0);
     if ($opts{estimates}) {
       if ($est) {
-	$output .= sprintf("/%6d:%02d", int($est), ($est - int($est))*60.0);
+	$output .= sprintf("/%${hourDigits}d:%02d", int($est), ($est - int($est))*60.0);
       }
       else {
-	$output .= "/ no est";
+	my $f = $hourDigits + 3;
+	$output .= sprintf("/%${f}s", "");
       }
     }
     $output .= " ";
     
   }
   if ($opts{minutes}) {
-    $output .= sprintf("%10.0f min", $hours * 60.0);
+    my $minuteDigits = $hourDigits + 2;
+    my $m = $hours * 60.0;
+    $output .= sprintf("%${minuteDigits}.0fm", $hours * 60.0);
     if ($opts{estimates}) {
       if ($est) {
-	$output .= sprintf("/%10.0f min", $est * 60.0);
+	$output .= sprintf("/%${minuteDigits}.0fm", $est * 60.0);
       }
       else {
-	$output .= "/ no est";
+	$output .= sprintf("/%${minuteDigits}s ", "");
       }
     }
     $output .= " ";
   }
   if ($opts{hours} or !$output) {
-    $output .= sprintf("%8.2f hrs", $hours);
+    my $dhourDigits = $hourDigits + 3;
+    $output .= sprintf("%${dhourDigits}.2fh", $hours);
     if ($opts{estimates}) {
       if ($est) {
-	$output .= sprintf("/%8.2f hrs", $est);
+	$output .= sprintf("/%${dhourDigits}.2fh", $est);
       }
       else {
-	$output .= "/ no est";
+	$output .= sprintf("/%${dhourDigits}s ", "");
       }
     }
     $output .= " ";
@@ -222,7 +226,17 @@ sub printHours {
   return $output;
 };
 
-      
+sub formatReportTotal {
+  my ($t, $et, $task) = @_;
+  return "$t " . printHours($et) . "$task";
+};
+
+sub formatReportItem {
+  # $t is a string, $et is as printHours expects, $task is a string
+  my ($t, $et, $task) = @_;
+  return "$t " . printHours($et) . "$task";
+};
+  
 my @output_lines; # this needs to be global, declaring it inside printReport gives scoping errs.
 sub printReport {
   my $r = shift @_;
@@ -240,14 +254,14 @@ sub printReport {
       if (ref($r->{$k}) eq 'HASH') {
 	if (scalar keys %{ $r->{$k} } == 1 and exists $r->{$k}->{''}) {
 	  # saydebug "Leaf category, printing hours for $suffix $k";
-	  unshift @output_lines, "$prefix         " . printHours($r->{$k}->{''}) . "$suffix $k";
+	  unshift @output_lines, formatReportItem($prefix, $r->{$k}->{''}, "$suffix$k");
 	  $sum += ${$r->{$k}->{''}}[0];
 	  $estsum += ${$r->{$k}->{''}}[1];
 	  # saydebug "constructed leaf: sum = $sum, estsum = $estsum";
 	} else {
 	  # saydebug "Aggregate category, find totals and print summary for $suffix $k";
-	  my $total = _p("$prefix", "$suffix $k:", $r->{$k});
-	  unshift @output_lines, "$prefix ". printHours($total) . "(total) $suffix $k";
+	  my $total = _p("$prefix", "$suffix$k: ", $r->{$k});
+	  unshift @output_lines, formatReportTotal($prefix, $total, "(total) $suffix$k");
 	  $sum += ${$total}[0];
 	  $estsum += ${$total}[1];
 	  # saydebug "aggregate: sum = $sum, estsum = $estsum";
@@ -255,7 +269,7 @@ sub printReport {
       } else {
 	# saydebug "True leaf, print hours for $suffix $k";
 	# my $t = sprintf("%8.2f", $r->{$k});
-	unshift @output_lines, "$prefix         " . printHours($r->{$k}) . "$suffix $k";
+	unshift @output_lines, formatReportItem($prefix, $r->{$k}, "$suffix$k");
 	$sum += ${$r->{$k}}[0];
 	$estsum += ${$r->{$k}}[1];
 	# saydebug "leaf: sum = $sum, estsum = $estsum";
@@ -296,7 +310,7 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
   # say "there are still arguments: " . join ', ', @ARGV;
   if ( (grep { looks_like_number($_) } @ARGV) == @ARGV ) { # test lengths
     # say "all args are numbers - Simulate";
-    say "Simulating tasks of " . join(', ', @ARGV). " = " . sum(@ARGV) . " hrs total, printing percentiles . . . ";
+    say "Simulating tasks of " . join(', ', @ARGV). " = " . sum(@ARGV) . " h total, printing percentiles . . . ";
     my @velocities = getVelocities();
     # say "velocities = " . join ',', @velocities;
     
@@ -316,7 +330,7 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
     if (!$opts{silent}) {
       my $n = 10;
       say "adding task $task, the last $n tasks in $opts{f} are:\n";
-      $opts{t} = $n if (!$opts{t});
+      # $opts{t} = $n if (!$opts{t});
     }
     open(my $fh, '>>', $opts{f}) or die "Could not open file '$opts{f}' $!";
     say $fh timestampnow() . " " . $task;
@@ -329,6 +343,7 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
   # Tied Handle Interface
 
   if ($opts{t}) { # task report
+    $hourDigits = 2;
     my ($t1, $t2, $et, $est, $task);
     $t2 = gmtime; $t2 += localtime->tzoffset;
     # say "first t2 = $t2 = ". timestamp($t2) if $opts{DEBUG};
@@ -340,8 +355,9 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
       # say "task report processing line: $_" if $opts{DEBUG};
       if (($t1, $et, $est, $task) = parseLine($t2, $_)) {
 	# say "task report: " . timestamp($t1) . "=t1=$t1, $et, $est, $task - ". timestamp($t1)  if $opts{DEBUG};
-	my $line = timestamp($t1) . " for ".printHours([$et,$est])." $task";
+	my $line = formatReportItem(timestamp($t1), [$et,$est], $task);
 	$t2 = $t1;
+	next if !$opts{nobreak} and grep /^$task$/, @{$opts{breakword}};
 	# say $line if $opts{DEBUG};
 	unshift @output_lines, $line;
 	last if --$opts{t} <= 0;
