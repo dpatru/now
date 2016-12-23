@@ -293,7 +293,6 @@ sub getVelocities { # get some velocities to simulate with
   use File::ReadBackwards ;
   # Tied Handle Interface
   my ($t2, $et, $est, $task);
-  # $t2 = localtime;
   $t2 = gmtime; $t2 += localtime->tzoffset;
   my @velocities;
   tie *BW, 'File::ReadBackwards', $opts{f} or
@@ -370,7 +369,7 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
     my %report;
     tie *BW, 'File::ReadBackwards', $opts{f} or
       die "can't read .now file ($opts{f}) $!" ;
-    my $t2 = localtime; # gmtime; //  + localtime->tzoffset;
+    my $t2 = gmtime; $t2 += localtime->tzoffset;
     while( <BW> ) {
       chomp;
       if (my ($nextt2, $et, $est, $task) = parseLine($t2, $_)) {
@@ -394,7 +393,12 @@ if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
 	addToTree( $r, [$et, $est], @categories );
 	# say Dumper(\%report);
       }}
-    if ($opts{verbose}) { say for @processed_lines; say ""; }
+    if ($opts{verbose}) {
+      say "processed $#processed_lines lines";
+      say for @processed_lines;
+    }
+    # say Dumper(\%report);
+    
     printReport(\%report);
   }
 
