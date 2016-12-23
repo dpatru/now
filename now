@@ -599,15 +599,17 @@ NOW_SUNDAY=1.
 When simulating tasks, there are two parameters that can be
 adjusted. B<samples> is the number of velocities that are pulled from
 the nowfile. (A velocity is the ratio of time spent on a task divided
-by the estimate. A velocity of 1 means that the task took as long as
-expected. A velocity of 2 means that the task went twice as fast as
-expected.) The velocities are taken in reverse order (from the bottom
-of the nowfile).
+by the estimate. A velocity of 1 means that time went as expected. A
+velocity of 2 means that time went twice as fast as expected.) The
+velocities are taken in reverse order (from the bottom of the
+nowfile).
 
 Once the samples are taken, the task is simulated by multiplying the
 estimates by a randomly chosen velocity. The results are then sorted
 and the 5th, 15th, 25th, ..., 95th percentiles are taken. The number
-of simulations is the number of B<tries>.
+of simulations is the number of B<tries>. To get a more
+probabalistically accurate estimate, increase the number of
+B<tries>. A smaller B<samples> ignores older velocities.
 
 =back
 
