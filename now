@@ -2,7 +2,7 @@
 
 use strict;
 use v5.10; # allows use of say
-use Getopt::Long qw(GetOptions);
+use Getopt::Long qw(GetOptionsFromArray :config require_order bundling);
 use Pod::Usage qw(pod2usage);
 use Time::Piece;
 use Data::Dumper;
@@ -11,19 +11,15 @@ use Time::Seconds;
 use Scalar::Util qw(looks_like_number);
 use List::Util qw(sum);
 use Carp::Assert qw(assert should);
+use Text::ParseWords qw(shellwords);
 
-
-my %opts = ();
+my %opts = (); # program options
 
 sub saydebug {
-  say "DEBUG: " . (join ' ', @_) if $opts{DEBUG};
+  say STDERR "DEBUG: " . (join ' ', @_) if $opts{DEBUG};
 };
 
-
-if (@ARGV == 0) {
-  say "The last few tasks are . . .";
-  $opts{t}=10;
-}
+my $no_args = @ARGV == 0;
 
 ## Parse options and print usage if there is a syntax error,
 ## or if usage was explicitly requested.
@@ -31,19 +27,200 @@ if (@ARGV == 0) {
 # say Dumper(\%opts);
 # say "Argv is "
 
-Getopt::Long::Configure ("bundling");
-GetOptions(\%opts,
-	   'h|?', 'help|man', 'version', 'verbose|v',
-	   'hours', 'minutes', 'hours-minutes',
-	   'silent|s', 'nobreak', 'breakword=s@',
-	   'estimates', 'noestimates',
-	   'sunday', 'monday',
-	   'DEBUG', 'NODEBUG',
-	   'samples=i', 'tries=i',
-	   't=i', 'w=i', 'd=i', 'y=i', 'f=s'
-	  )
-  or pod2usage(2);
-# say Dumper(\%opts);
+
+sub myGetOptions {
+  my $argv = shift @_;
+  my $success = GetOptionsFromArray
+    ( $argv, \%opts,
+      'h|?', 'help|man', 'version', 'verbose|v',
+      'hours', 'minutes', 'hours-minutes',
+      'silent|s', 'nobreak', 'breakword=s@',
+      'estimates', 'noestimates',
+      'sunday', 'monday',
+      'DEBUG', 'NODEBUG',
+      'samples=i', 'tries=i',
+      't=i', 'w=i', 'd=i', 'y=i', 'f=s'
+    );
+    
+  sub setOption {
+    my ($option, $nooption, $env, $default) = @_;
+    if ($opts{$option}) {
+      saydebug "$option set by commandline";
+      return;
+    }
+    elsif ( $opts{$nooption} ) {
+      $opts{$option} = 0;
+      saydebug "$option unset by commandline";
+      return;
+    }
+    elsif ( exists $ENV{$env} ) {
+      $opts{$option} = $ENV{$env};
+      saydebug "$option set by environment to $ENV{$env}";
+    }
+    else {
+      $opts{$option} = $default;
+      saydebug "$option set by $default by default.";
+    }
+  };
+  
+  setOption("DEBUG", "NODEBUG", "NOW_DEBUG", 0);
+  setOption("estimates", "noestimates", "NOW_ESTIMATES", 0);
+  setOption("verbose", "noverbose", "NOW_VERBOSE", 0);
+  setOption("sunday", "monday", "NOW_SUNDAY", 0);
+  setOption("samples", "n/a", "NOW_SAMPLES", 50);
+  setOption("tries", "n/a", "NOW_TRIES", 1000);
+  
+  sub setNowfile {
+    if ($opts{f}) { 
+      saydebug "nowfile set by commandline";
+    return;
+    }
+    elsif ( -e (glob $ENV{NOW_FILE} )) {
+      $opts{f} = $ENV{NOW_FILE};
+      saydebug "nowfile set by environment to $ENV{NOW_FILE}";
+      return;
+    }
+    my $f = File::HomeDir->my_home . "/Dropbox/.now";
+    $f = File::HomeDir->my_home . "/.now" if not -e $f;
+    if ( -e $f ) {
+      $opts{f} = $f;
+      saydebug "nowfile set to $f by default.";
+      return;
+    }
+  my $d = File::HomeDir->my_home . "/Dropbox";
+    $d = File::HomeDir->my_home if not -d $d;
+    $opts{f} = "$d/.now";
+    saydebug "nowfile set to $opts{f} by default.";
+  }
+  
+  setNowfile;
+  
+  sub setBreakword {
+    my @breakwords;
+    if ($opts{breakword}) { 
+      unshift @breakwords, split / *, */ for @{$opts{breakword}};
+      $opts{breakword} = \@breakwords;
+      saydebug @breakwords . " breakwords from command line: " . join ',', @breakwords;
+      return;
+    }
+    elsif (exists $ENV{NOW_BREAK_WORD}) {
+      if ($ENV{NOW_BREAK_WORD}) {
+	@breakwords = split / *, */, $ENV{NOW_BREAK_WORD};
+	$opts{breakword} = \@breakwords;
+	saydebug @breakwords . " breakwords from environment: " . join ',', @breakwords;
+	return;
+      }
+      else {
+	saydebug @breakwords . " breakwords from environment.";
+      }
+    }
+    else {
+      @breakwords = ( "break", "stop" );
+      $opts{breakword} = \@breakwords;
+      saydebug @breakwords . " breakwords as default: " . join ',', @breakwords;
+      return;
+    }
+  };
+  setBreakword;
+
+  return $success;
+}; # end myGetOptions
+
+sub reverseTail { # get last n lines
+  my ($filename, $n) = @_;
+  use File::ReadBackwards;
+  # Tied Handle Interface
+  my @lines;
+  tie *BW, 'File::ReadBackwards', $opts{f} or
+    die "can't read .now file ($opts{f}) $!" ;
+  while( <BW> ) {
+    last if $n-- <= 0;
+    # say "reading line $_";
+    chomp;
+    push @lines, $_;
+  }
+  return @lines;
+};
+
+sub bash_complete {
+  # This is called when this script is used to for bash
+  # autocompletion.  It takes as its arguments the arguments passed to
+  # the script (command, word, prev_word). It returns a list of
+  # completions.
+  
+  # The following envoronment variables are set:
+
+  # COMP_KEY: The keyboard key that was last pressed to invoke
+  # completion, normally 9.
+
+  # COMP_LINE: The complete command line.
+
+  # COMP_POINT: The character index of the curser on the command line.
+
+  # COMP_TYPE: The type of completion:
+  #            [tab] 9 for inline,
+  #            [tab][tab] 63 for below the line.
+
+  my($command, $word, $prev_word) = @_;
+  # say "0000argv = $command, $word, $prev_word";
+  my @results;
+  if ($word =~ /^-/) { # show options
+    @results = ( "-d", "-w", "-y", "-f",
+		 "-h", "--help", "--verbose",
+		 "--minutes", "--hours-minutes",
+		 "--samples", "--tries");
+    push @results, $opts{sunday}? "--monday": "--sunday";
+    push @results, $opts{estimates}? "--noestimates": "--estimates";
+    if ($word eq "-") {
+      return grep { ! /--/ } @results;
+    }
+    elsif ($word eq "--") {
+      return grep { /--/ } @results;
+    }
+    else {
+      return grep {/$word/} @results;
+    }
+  }
+  if ($prev_word =~/-\w*f$/) { # trying to set the nowfile
+    return glob "'$word*'";
+  }
+
+  # return non-options (tasks), first process options to get the right nowfile.
+  my $argv = $ENV{COMP_LINE};
+  $argv =~ s/^\s*\w+\s*//; # strip first argument (program name)
+  my @argv = shellwords(($argv,));
+  eval { myGetOptions( \@argv ); };
+  if (!$opts{f} or ! -f $opts{f}) {
+    die "Can't complete with no nowfile.";
+  }
+  # show tasks
+  @results = grep { s/^\d\d\d\d-\d\d-\d\d[ T]\d\d:\d\d:\d\d [\d:.]*\s*// }
+    reverseTail $opts{f}, 10;
+  $word =~ s/^\s+|\s+$//;
+  my $words = join ' ', @argv;
+  $words =~ s/^\s*[\d:\.]*\s+//; # take off estimates
+  if ($word) {
+    $words =~ s/$word$//; # take off word
+    return grep { s/$words$word/$word/ } @results if $words;
+    return grep { /^$word/ } @results if not $words;
+  }
+  else {
+    return grep { s/$words\s*// } @results if $words;
+    return @results;
+  }
+}; # end bash_complete
+
+
+my @completion_flags = ( "COMP_LINE", "COMP_POINT", "COMP_KEY", "COMP_TYPE" );
+if (grep { exists $ENV{$_} } @completion_flags) { # called to complete
+  # say "in commandline completion . . .";
+  say for bash_complete (@ARGV);
+  exit(0);
+}
+else { # called in regular manner
+  myGetOptions(\@ARGV) or pod2usage(2);
+  # say Dumper(\%opts);
+}
 
 pod2usage(-verbose => 1) if $opts{h};
 pod2usage(-verbose => 2) if $opts{help};
@@ -56,88 +233,6 @@ if ($opts{version}) {
 pod2usage("$0: options t, w, and d accept only non-negative integers.")
   if $opts{t} < 0 || $opts{d} < 0 || $opts{w} < 0;
 
-sub setOption {
-  my ($option, $nooption, $env, $default) = @_;
-  if ($opts{$option}) {
-    saydebug "$option set by commandline";
-    return;
-  }
-  elsif ( $opts{$nooption} ) {
-    $opts{$option} = 0;
-    saydebug "$option unset by commandline";
-    return;
-  }
-  elsif ( exists $ENV{$env} ) {
-    $opts{$option} = $ENV{$env};
-    saydebug "$option set by environment to $ENV{$env}";
-  }
-  else {
-    $opts{$option} = $default;
-    saydebug "$option set by $default by default.";
-  }
-};
-
-setOption("DEBUG", "NODEBUG", "NOW_DEBUG", 0);
-setOption("estimates", "noestimates", "NOW_ESTIMATES", 0);
-setOption("verbose", "noverbose", "NOW_VERBOSE", 0);
-setOption("sunday", "monday", "NOW_SUNDAY", 0);
-setOption("samples", "n/a", "NOW_SAMPLES", 50);
-setOption("tries", "n/a", "NOW_TRIES", 1000);
-  
-sub setNowfile {
-  if ($opts{f}) { 
-    saydebug "nowfile set by commandline";
-    return;
-  }
-  elsif ( -e (glob $ENV{NOW_FILE} )) {
-    $opts{f} = $ENV{NOW_FILE};
-    saydebug "nowfile set by environment to $ENV{NOW_FILE}";
-    return;
-  }
-  my $f = File::HomeDir->my_home . "/Dropbox/.now";
-  $f = File::HomeDir->my_home . "/.now" if not -e $f;
-  if ( -e $f ) {
-    $opts{f} = $f;
-    saydebug "nowfile set to $f by default.";
-    return;
-  }
-  my $d = File::HomeDir->my_home . "/Dropbox";
-  $d = File::HomeDir->my_home if not -d $d;
-  $opts{f} = "$d/.now";
-  saydebug "nowfile set to $opts{f} by default.";
-}
-
-setNowfile;
-
-sub setBreakword {
-  my @breakwords;
-  if ($opts{breakword}) { 
-    unshift @breakwords, split / *, */ for @{$opts{breakword}};
-    $opts{breakword} = \@breakwords;
-    saydebug @breakwords . " breakwords from command line: " . join ',', @breakwords;
-    return;
-  }
-  elsif (exists $ENV{NOW_BREAK_WORD}) {
-    if ($ENV{NOW_BREAK_WORD}) {
-      @breakwords = split / *, */, $ENV{NOW_BREAK_WORD};
-      $opts{breakword} = \@breakwords;
-      saydebug @breakwords . " breakwords from environment: " . join ',', @breakwords;
-      return;
-    }
-    else {
-      saydebug @breakwords . " breakwords from environment.";
-    }
-  }
-  else {
-    @breakwords = ( "break", "stop" );
-    $opts{breakword} = \@breakwords;
-    saydebug @breakwords . " breakwords as default: " . join ',', @breakwords;
-    return;
-  }
-};
-setBreakword;
-
-# say "Argv is " . join ' ', @ARGV;
 
 sub timestampnow {
   my $t = Time::Piece->new;
@@ -179,6 +274,7 @@ sub toHours {
   }
   return $t;
 };
+
   
 sub parseLine {
   my ($t2, $line) = @_;
@@ -324,6 +420,7 @@ sub printReport {
   say for @output_lines;
 };
 
+
 sub getVelocities { # get some velocities to simulate with
   # use the n most recent
   my $n = shift @_ || 1000;
@@ -392,6 +489,12 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
     close $fh; 
   }
 }
+
+if ($no_args) {
+  say "The last few tasks are . . .";
+  $opts{t}=10;
+}
+
 
 if ($opts{t} || $opts{d} || $opts{w} || $opts{y}) { # print report of tasks
   use File::ReadBackwards ;
@@ -671,7 +774,7 @@ a sample ~/.profile.
 
 # set the .now file to ~/mydir/.now
 
-export NOW_FILE=~/mydir/.now
+export NOW_qFILE=~/mydir/.now
 
 # Treat stop, break, quit, and done as breakwords.
 
