@@ -123,7 +123,7 @@ sub timestamp {
 };
 # say timestamp();
 
-sub parseTimestamp { # return a localtime of timestamp
+sub parseTimestamp { # return a gmtime of timestamp
   use Try::Tiny;
   my $s = shift(@_);
   my $t;
