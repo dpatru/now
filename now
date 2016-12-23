@@ -162,12 +162,23 @@ sub parseTimestamp { # return a gmtime of timestamp
 
 my ($t1, $t2);
 
+sub toHours {
+  my $t = shift @_;
+  if ($t =~ /(\d*\.?\d*):(\d*\.?\d*):?(\d*)/) {
+    my $h = $1 + $2/60.0 + $3/3600;
+    # say "converting h:m:s $t to hours $h";
+    return $h;
+  }
+  return $t;
+};
+  
 sub parseLine {
   my ($t2, $line) = @_;
-  if (my($timestamp, $est, $task) = $line =~ /(\d+\-\d+\-\d+ \d+:\d+:\d+)\s*([\d\.-]*)\s+(.*)/) {
+  if (my($timestamp, $est, $task) = $line =~ /(\d+\-\d+\-\d+ \d+:\d+:\d+)\s*(\d+.?\d*|\.\d+|\d*:\d+:?\d*)?\s+(.*)/) {
     my $t1 = parseTimestamp($timestamp);
     if ($t1) {
       my $et = sprintf("%.2f", ($t2 - $t1)/3600.0);
+      $est = toHours $est;
       my @result = ($t1, $et, $est, $task);
       # saydebug "parseline(" . timestamp($t2) . ", $line)->(". (join ', ', @result) . ")";
       return @result;
@@ -329,12 +340,13 @@ sub getVelocities { # get some velocities to simulate with
 
 sub simulate {
   my ($sample, $tries, @estimates) = @_;
+  my @te = map {sprintf("%.2f", $_)} @estimates; # truncated estimates for printing
   if (@estimates > 1) { 
-    say "Simulating tasks of " . join(', ', @estimates). " = " .
-      sum(@estimates) . " total, printing percentiles . . . ";
+    say "Simulating tasks of " . join(', ', @te). " = " .
+      sum(@te) . " total, printing percentiles . . . ";
   }
   else {
-    say "Simulating task of $estimates[0], printing percentiles . . . ";
+    say "Simulating task of $te[0], printing percentiles . . . ";
   }
   my @velocities = getVelocities $sample;
   # say "velocities = " . join ',', @velocities;
@@ -355,9 +367,11 @@ sub simulate {
 
 if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
   # say "there are still arguments: " . join ', ', @ARGV;
-  if ( (grep { looks_like_number($_) } @ARGV) == @ARGV ) { # test lengths
+  if ( (grep { looks_like_number($_) or /^\d*:\d*:?\d*$/ } @ARGV) == @ARGV ) { # test lengths
     # say "all args are numbers - Simulate";
-    simulate($opts{samples}, $opts{tries}, @ARGV);
+    my @hours = map {toHours $_} @ARGV;
+    # say join ', ', @hours;
+    simulate($opts{samples}, $opts{tries}, @hours);
   }
   else {
     # say "NOT all args are numbers - Add a task";
