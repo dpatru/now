@@ -81,7 +81,7 @@ setOption("DEBUG", "NODEBUG", "NOW_DEBUG", 0);
 setOption("estimates", "noestimates", "NOW_ESTIMATES", 0);
 setOption("verbose", "noverbose", "NOW_VERBOSE", 0);
 setOption("sunday", "monday", "NOW_SUNDAY", 0);
-setOption("samples", "n/a", "NOW_SAMPLES", 1000);
+setOption("samples", "n/a", "NOW_SAMPLES", 50);
 setOption("tries", "n/a", "NOW_TRIES", 1000);
   
 sub setNowfile {
