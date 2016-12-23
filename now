@@ -13,7 +13,7 @@ use List::Util qw(sum);
 use Carp::Assert qw(assert should);
 
 
-my %opts = (samples=>1000, tries=>1000);
+my %opts = ();
 
 sub saydebug {
   say "DEBUG: " . (join ' ', @_) if $opts{DEBUG};
@@ -57,7 +57,7 @@ pod2usage("$0: options t, w, and d accept only non-negative integers.")
   if $opts{t} < 0 || $opts{d} < 0 || $opts{w} < 0;
 
 sub setOption {
-  my ($option, $nooption, $env) = @_;
+  my ($option, $nooption, $env, $default) = @_;
   if ($opts{$option}) {
     saydebug "$option set by commandline";
     return;
@@ -71,12 +71,18 @@ sub setOption {
     $opts{$option} = $ENV{$env};
     saydebug "$option set by environment to $ENV{$env}";
   }
+  else {
+    $opts{$option} = $default;
+    saydebug "$option set by $default by default.";
+  }
 };
 
-setOption("DEBUG", "NODEBUG", "NOW_DEBUG");
-setOption("estimates", "noestimates", "NOW_ESTIMATES");
-setOption("verbose", "noverbose", "NOW_VERBOSE");
-setOption("sunday", "monday", "NOW_SUNDAY");
+setOption("DEBUG", "NODEBUG", "NOW_DEBUG", 0);
+setOption("estimates", "noestimates", "NOW_ESTIMATES", 0);
+setOption("verbose", "noverbose", "NOW_VERBOSE", 0);
+setOption("sunday", "monday", "NOW_SUNDAY", 0);
+setOption("samples", "n/a", "NOW_SAMPLES", 1000);
+setOption("tries", "n/a", "NOW_TRIES", 1000);
   
 sub setNowfile {
   if ($opts{f}) { 
@@ -566,14 +572,31 @@ will be treated as belonging to the following week (that starts the
 next Monday.) This can also be set with the environment variable
 NOW_SUNDAY=1.
 
+=item B<--samples 1000, --tries 1000>
+
+When simulating tasks, there are two parameters that can be
+adjusted. B<samples> is the number of velocities that are pulled from
+the nowfile. (A velocity is the ratio of time spent on a task divided
+by the estimate. A velocity of 1 means that the task took as long as
+expected. A velocity of 2 means that the task went twice as fast as
+expected.) The velocities are taken in reverse order (from the bottom
+of the nowfile).
+
+Once the samples are taken, the task is simulated by multiplying the
+estimates by a randomly chosen velocity. The results are then sorted
+and the 5th, 15th, 25th, ..., 95th percentiles are taken. The number
+of simulations is the number of B<tries>.
+
+=back
+
 =head1 DESCRIPTION
 
-B<now> is a simple, text-based, shell-based time tracker suitable for 
-tracking time at the terminal and completing time sheets. 
-Tasks are stored in a text file ~/Dropbox/.now or ~/.now.
-Tasks are stored in the .now file, one task per line, prepended by a timestamp and 
-an optional estimate (in hours). You can easily edit this file by hand. This utility just 
-makes common tasks easier.
+B<now> is a simple, text-based, shell-based time tracker suitable for
+tracking time at the terminal and completing time sheets.  Tasks are
+stored in a text file ~/Dropbox/.now or ~/.now.  Tasks are stored in
+the .now file, one task per line, prepended by a timestamp and an
+optional estimate (in hours). You can easily edit this file by
+hand. This utility just makes common tasks easier.
 
 B<now> has three modes of use: 
 (1) real-time tracking mode, 
@@ -582,9 +605,10 @@ B<now> has three modes of use:
 
 =head2 REAL-TIME TRACKING
 
-To use the real-time tracking mode, call B<now> with the task. 
-The task will be appended the .now file with the current time.
-Call B<now> with a new task, or a "break" task when the current task is done.
+To use the real-time tracking mode, call B<now> with the task.  The
+task will be appended the .now file with the current time.  Call
+B<now> with a new task, or a "break" task when the current task is
+done.
 
 =over 4
 
@@ -602,7 +626,11 @@ now 10 my task # start tracking "my task" now, estimate 10 minutes
 
 =head2 REPORTING
 
-Use the -d, -w, or -t options for report mode. This will print a report of the last n days, weeks, or tasks respectively. Colons (:) are used to mark task categories. Reports break down time spent hierachially in each category and task. The -v or --verbose option will print the tasks processed before the report.
+Use the -d, -w, or -t options for report mode. This will print a
+report of the last n days, weeks, or tasks respectively. Colons (:)
+are used to mark task categories. Reports break down time spent
+hierachially in each category and task. The -v or --verbose option
+will print the tasks processed before the report.
 
 =head2 ESTIMATING
 
@@ -612,24 +640,36 @@ and http://www.joelonsoftware.com/items/2007/10/26.html.
 
 =head1 CUSTOMIZATION
 
-You can set some options using environment variables. The following is a sample ~/.profile.
+You can set some options using environment variables. The following is
+a sample ~/.profile.
 
 =over 4
 
 # set the .now file to ~/mydir/.now
+
 export NOW_FILE=~/mydir/.now
 
 # Treat stop, break, quit, and done as breakwords.
+
 export NOW_BREAK_WORD=stop,break,quit,done
 
 # Include estimates in reports.
+
 export NOW_ESTIMATES=1
 
 # Start weeks on Sunday.
+
 export NOW_SUNDAY=1
 
 # Start weeks on Monday.
+
 export NOW_SUNDAY=0
+
+# Set the default samples and tries.
+
+export NOW_SAMPLES=100
+
+export NOW_TRIES=80
 
 =back
 
