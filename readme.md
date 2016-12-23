@@ -32,8 +32,8 @@ Because `now` is very simple, it's easy to understand, easy to use, and easy to 
 Installation
 ---
 
-To install, download file `now` into a directory in your path.  For
-autocompletion, source the `_now.sh` file in your `.profile` or
+To install, download file `now`into a directory in your path.  For
+autocompletion, downloadsource the `_now_bash_completion.sh` file in your `.profile` or
 `.bashrc`.
 
 Feedback
