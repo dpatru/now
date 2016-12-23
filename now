@@ -12,20 +12,8 @@ use Scalar::Util qw(looks_like_number);
 use List::Util qw(sum);
 use Carp::Assert qw(assert should);
 
-sub getNowfile {
-  my $f = glob $ENV{NOW_FILE};
-  return $f if -e $f;
-  $f = File::HomeDir->my_home . "/Dropbox/.now";
-  return $f if -e $f;
-  $f = File::HomeDir->my_home . "/.now";
-  return $f if -e $f;
-  my $d = File::HomeDir->my_home . "/Dropbox";
-  return "$d/.now" if -d $d;
-  $d = File::HomeDir->my_home;
-  return "$d/.now" if -d $d;
-};
 
-my %opts = (f=>getNowfile);
+my %opts = ();
 
 sub saydebug {
   say "DEBUG: " . (join ' ', @_) if $opts{DEBUG};
@@ -90,6 +78,31 @@ setOption("estimates", "noestimates", "NOW_ESTIMATES");
 setOption("verbose", "noverbose", "NOW_VERBOSE");
 setOption("sunday", "monday", "NOW_SUNDAY");
   
+sub setNowfile {
+  if ($opts{f}) { 
+    saydebug "nowfile set by commandline";
+    return;
+  }
+  elsif ( -e (glob $ENV{NOW_FILE} )) {
+    $opts{f} = $ENV{NOW_FILE};
+    saydebug "nowfile set by environment to $ENV{NOW_FILE}";
+    return;
+  }
+  my $f = File::HomeDir->my_home . "/Dropbox/.now";
+  $f = File::HomeDir->my_home . "/.now" if not -e $f;
+  if ( -e $f ) {
+    $opts{f} = $f;
+    saydebug "nowfile set to $f by default.";
+    return;
+  }
+  my $d = File::HomeDir->my_home . "/Dropbox";
+  $d = File::HomeDir->my_home if not -d $d;
+  $opts{f} = "$d/.now";
+  saydebug "nowfile set to $opts{f} by default.";
+}
+
+setNowfile;
+
 sub setBreakword {
   my @breakwords;
   unshift @breakwords, split / *, */ for @{$opts{breakword}};
