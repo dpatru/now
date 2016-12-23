@@ -13,7 +13,7 @@ use List::Util qw(sum);
 use Carp::Assert qw(assert should);
 
 
-my %opts = ();
+my %opts = (samples=>1000, tries=>1000);
 
 sub saydebug {
   say "DEBUG: " . (join ' ', @_) if $opts{DEBUG};
@@ -39,6 +39,7 @@ GetOptions(\%opts,
 	   'estimates', 'noestimates',
 	   'sunday', 'monday',
 	   'DEBUG', 'NODEBUG',
+	   'samples=i', 'tries=i',
 	   't=i', 'w=i', 'd=i', 'y=i', 'f=s'
 	  )
   or pod2usage(2);
@@ -54,7 +55,6 @@ if ($opts{version}) {
 
 pod2usage("$0: options t, w, and d accept only non-negative integers.")
   if $opts{t} < 0 || $opts{d} < 0 || $opts{w} < 0;
-
 
 sub setOption {
   my ($option, $nooption, $env) = @_;
@@ -301,7 +301,8 @@ sub printReport {
 
 sub getVelocities { # get some velocities to simulate with
   # use the n most recent
-  my $n = 1000;
+  my $n = shift @_ || 1000;
+  say "getting $n velocities . . ." if $opts{verbose};
   
   use File::ReadBackwards ;
   # Tied Handle Interface
@@ -313,35 +314,50 @@ sub getVelocities { # get some velocities to simulate with
   while( <BW> ) {
     chomp;
     if (($t2, $et, $est, $task) = parseLine($t2, $_) and $est) {
-      unshift @velocities, 1.0 * $et / $est;
+      unshift @velocities, $et * 1.0 / $est;
       last if $n-- <= 0;
     }}
+  say "got " . ($#velocities + 1) . " velocities" if $opts{verbose};
   return @velocities;
-}
+};
+
+sub simulate {
+  my ($sample, $tries, @estimates) = @_;
+  if (@estimates > 1) { 
+    say "Simulating tasks of " . join(', ', @estimates). " = " .
+      sum(@estimates) . " total, printing percentiles . . . ";
+  }
+  else {
+    say "Simulating task of $estimates[0], printing percentiles . . . ";
+  }
+  my @velocities = getVelocities $sample;
+  # say "velocities = " . join ',', @velocities;
+  
+  my @times;
+  my $n = $tries;
+  while ($n-- > 0) {
+    my $t = 0;
+    for (@estimates) { $t += 1.0 * $_ * $velocities[rand @velocities]; }
+    unshift @times, $t;
+  }
+  say "     5%     15%     25%     35%     45%     55%     65%     75%     85%     95%";
+  my $step = $tries / 10.0;
+  my @stimes = sort { $a <=> $b } @times;
+  say join ' ', map { sprintf("%7.0f", $stimes[$step * ($_ + .5)]) } (0..9);
+};
+
 
 if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
   # say "there are still arguments: " . join ', ', @ARGV;
   if ( (grep { looks_like_number($_) } @ARGV) == @ARGV ) { # test lengths
     # say "all args are numbers - Simulate";
-    say "Simulating tasks of " . join(', ', @ARGV). " = " . sum(@ARGV) . " h total, printing percentiles . . . ";
-    my @velocities = getVelocities();
-    # say "velocities = " . join ',', @velocities;
-    
-    my @times;
-    my $n = 100;
-    while ($n-- > 0) {
-      my $t = 0;
-      for (@ARGV) { $t += $_ * $velocities[rand @velocities]; }
-      unshift @times, sprintf("%6.0f", $t);
-    }
-    my $i = 5;
-    say "     5%     15%     25%     35%     45%     55%     65%     75%     85%     95%";
-    say join ', ', grep { not ( $i++ % 10 ) } sort { $a <=> $b } @times;
-  } else {
+    simulate($opts{samples}, $opts{tries}, @ARGV);
+  }
+  else {
     # say "NOT all args are numbers - Add a task";
     my $task = join ' ', @ARGV;
     if (!$opts{silent}) {
-      say "adding: $task"
+      say "starting $task"
     }
     open(my $fh, '>>', $opts{f}) or die "Could not open file '$opts{f}' $!";
     say $fh timestampnow() . " " . $task;
@@ -498,6 +514,8 @@ sample [options] [file ...]
    --noestimates     turn off estimates when reporting
    --sunday          start the week on sunday for weekly reports
    --monday          start the week on monday (default)
+   --samples 1000    number of sample estimates to retrieve for the simulation
+   --tries 100       number of times to simulate
    -f mynowfile      use now file mynowfile (default is ~/.now)
    -t 5              show 5 tosks
    -d 5              show 5 days
