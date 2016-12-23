@@ -111,22 +111,30 @@ setNowfile;
 
 sub setBreakword {
   my @breakwords;
-  unshift @breakwords, split / *, */ for @{$opts{breakword}};
-  saydebug @breakwords . " breakwords from command line: " . join ',', @breakwords;
-
-  if (!@breakwords) {
-    @breakwords = split / *, */, $ENV{NOW_BREAK_WORD} if !@breakwords;
-    saydebug @breakwords . " breakwords from environment: " . join ',', @breakwords;
+  if ($opts{breakword}) { 
+    unshift @breakwords, split / *, */ for @{$opts{breakword}};
+    $opts{breakword} = \@breakwords;
+    saydebug @breakwords . " breakwords from command line: " . join ',', @breakwords;
+    return;
   }
-
-  if (!@breakwords) {
-    @breakwords = ( "break" );
+  elsif (exists $ENV{NOW_BREAK_WORD}) {
+    if ($ENV{NOW_BREAK_WORD}) {
+      @breakwords = split / *, */, $ENV{NOW_BREAK_WORD};
+      $opts{breakword} = \@breakwords;
+      saydebug @breakwords . " breakwords from environment: " . join ',', @breakwords;
+      return;
+    }
+    else {
+      saydebug @breakwords . " breakwords from environment.";
+    }
+  }
+  else {
+    @breakwords = ( "break", "stop" );
+    $opts{breakword} = \@breakwords;
     saydebug @breakwords . " breakwords as default: " . join ',', @breakwords;
+    return;
   }
-
-  $opts{breakword} = \@breakwords;
 };
-
 setBreakword;
 
 # say "Argv is " . join ' ', @ARGV;
