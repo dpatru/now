@@ -3,7 +3,7 @@
 # run to enable autocompletion.
 # Put the following line in your .profile or .bashrc file to enable
 # autocompletion for now:
-#         . path/to/_now.sh
+#         . path/to/_now_bash_completion.sh
 
 _now() 
 {
@@ -48,5 +48,4 @@ _now()
     return 0
     
 }
-# complete -P \" -S \" -F _now now
 complete -o nospace -F _now now
