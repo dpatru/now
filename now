@@ -13,10 +13,13 @@ use List::Util qw(sum);
 use Carp::Assert qw(assert should);
 use Text::ParseWords qw(shellwords);
 
+my @completion_flags = ( "COMP_LINE", "COMP_POINT", "COMP_KEY", "COMP_TYPE" );
+my $in_bash_completion = grep { exists $ENV{$_} } @completion_flags;
+
 my %opts = (); # program options
 
 sub saydebug {
-  say STDERR "DEBUG: " . (join ' ', @_) if $opts{DEBUG};
+  say STDERR "DEBUG: " . (join ' ', @_) if $opts{DEBUG} && !$in_bash_completion;
 };
 
 my $no_args = @ARGV == 0;
@@ -211,8 +214,7 @@ sub bash_complete {
 }; # end bash_complete
 
 
-my @completion_flags = ( "COMP_LINE", "COMP_POINT", "COMP_KEY", "COMP_TYPE" );
-if (grep { exists $ENV{$_} } @completion_flags) { # called to complete
+if ($in_bash_completion) { # called to complete
   # say "in commandline completion . . .";
   say for bash_complete (@ARGV);
   exit(0);
