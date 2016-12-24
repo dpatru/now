@@ -1,0 +1,34 @@
+* now todo list
+
+** interuptions
+
+Interuptions are common. How should they be handled?
+
+This only matters when there is an estimate involved. 
+It seems that the estimate should be rewritten, to reflect the fact that there was an interuption. 
+However, the fact that there was an interuption can be seen as a failure to plan. It will be reflected in the velocities. 
+
+What could be done is make an easy way to see which projects still have time on them, and allow the user to "resume" by adjusting the estimate and re-inputting the task with the balance of the estimate. This will introduce errors in simulating, but will make the reporting better. 
+
+Proposed: use `now ::` as a way to ask the system for unfinished projects. A list of them could be returned, numbered. Then `now :: [task number]` could be used to resume a job. The estimate on the old entry would be adjusted to match the actual time spent, and the remaining time on the estimate would be used on the new entry. This would track estimations in reports correctly, even when there are interuptions. On the other hand, it would tend to screw up estimating, because there would be more jobs where the estimation matched the time spent, which may not be how you want to treat inteructions, i.e., they would make your velocity record look better than it is. 
+
+The current solution is to ignore the effect of interuptions on estimates. If it bothers the user, then he/she can change them manually. But this is kind of hard, as it probably should be. Verdict: I don't think the system should be changed to accomodate inteructions.
+
+** project folder?
+
+Tasks could be laid out in advance in a projects folder.
+This would fit nicely with planning, where projects would be laid out in advance and estimated.
+
+** autocompletion
+
+*** efficient autocompletion
+ - You can analyze the existing line, and then only retrieve jobs that could complete it.
+ - You can pull jobs from a project file. (but this can be done easily by inputing several short-term jobs or jobs without an estimate, just to get them into the system. That is, you can fake a project file just by entering jobs in the nowfile where autocomplete would find them. This seems more in the spirit of now.
+
+** corrections
+*** "compiler"
+Mode to go over the nowfile and find anomolies like blank lines or bad formatting.
+
+** comments
+Allow comments to be inserted with `now # this is a comment on the current job.`
+
