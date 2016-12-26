@@ -14,25 +14,21 @@ use Carp::Assert qw(assert should);
 use Text::ParseWords qw(shellwords);
 use List::MoreUtils 'pairwise';
 
+# Check if we're being called to autocomplete.
 my @completion_flags = ( "COMP_LINE", "COMP_POINT", "COMP_KEY", "COMP_TYPE" );
 my $in_bash_completion = grep { exists $ENV{$_} } @completion_flags;
 
-my %opts = (); # program options
+# Check if there are no arguments. This means we will be printing the last few lines.
+my $no_args = @ARGV == 0;
 
+my %opts = (); # program options in global variable
 sub saydebug {
   say STDERR "DEBUG: " . (join ' ', @_) if $opts{DEBUG} && !$in_bash_completion;
 };
-
-my $no_args = @ARGV == 0;
-
-## Parse options and print usage if there is a syntax error,
-## or if usage was explicitly requested.
-
-# say Dumper(\%opts);
-# say "Argv is "
-
-
 sub myGetOptions {
+  # This routine takes an @argv and processes it,
+  # stripping the processed options off the array,
+  # and setting the appropriate options in %opts.
   my $argv = shift @_;
   my $success = GetOptionsFromArray
     ( $argv, \%opts,
@@ -77,6 +73,8 @@ sub myGetOptions {
   setOption("tries", "n/a", "NOW_TRIES", 1000);
   
   sub setNowfile {
+    # not a normal option because we look for the nowfile in multiple
+    # places.
     if ($opts{f}) { 
       saydebug "nowfile set by commandline";
     return;
@@ -102,6 +100,8 @@ sub myGetOptions {
   setNowfile;
   
   sub setBreakword {
+    # not a normal option because breakwords are an array and they
+    # also get split on commas.
     my @breakwords;
     if ($opts{breakword}) { 
       unshift @breakwords, split / *, */ for @{$opts{breakword}};
