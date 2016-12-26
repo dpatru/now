@@ -682,9 +682,12 @@ B<now -w 4>            # Print report of the last 4 weeks.
 B<now 5>               # Estimate duration of task estimated to be 5 minutes.
 
 B<now 5 10 3>          # Estimate the duration of tasks estimated to be 
-                    # 5, 10, and 3 hours.
+                       # 5, 10, and 3 hours.
 
-sample - Using GetOpt::Long and Pod::Usage
+B<now -r a>            # Resume task a.
+
+B<now -r 5 a>          # Resume task a, changing estimated time to 5hrs.
+
 
 =head1 SYNOPSIS
 
