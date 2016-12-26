@@ -493,7 +493,7 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
     die "Couldn't parse arguments $templine"
       if ! ((undef, undef, $EST, $TASK) = parseLine($t2, $templine));
 
-    say "est = $EST, task = $TASK";
+    saydebug "est = $EST, task = $TASK";
     
     die "New estimate $est must be non-negative." if $EST < 0;
     
@@ -502,9 +502,9 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
 
     $linenumber = 0;
     for my $line (@tasks) {
-      say "Looking at $line";
+      saydebug "Looking at $line";
       if (($t1, $et, $est, $task) = parseLine($t2, $line)) {
-	say "Parsed $line - t1 = $t1, est = $est, task = $task.";
+	saydebug "Parsed $line - t1 = $t1, est = $est, task = $task.";
 	if ($task eq $TASK) {
 	  if (!$EST) {
 	    if (!$est || $est <= 0) { die "Found task ($task) but no estimate ($est)."; }
@@ -525,14 +525,14 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
       $linenumber++;
     }
     die "Could not find a matching task to resume. ($task)" if !$match;
-    say "task $task matches at line $linenumber";
+    saydebug "task $task matches at line $linenumber";
     $tasks[$linenumber] = timestamp($t1) . " $et $TASK\n";
     unshift @tasks, sprintf("%s %f %s\n", timestampnow, $EST - ($et), $TASK);
     open $fh, '>', "$opts{f}" or die "Could not open for writing nowfile '$opts{f}'";
     print $fh $_ for reverse @tasks;
     close $fh or die "Could not close nowfile '$opts{f}' $!";
-    say "done";
-    say for reverse @tasks;
+    # say "done";
+    # say for reverse @tasks;
   }
   elsif ( (grep { looks_like_number($_) or /^\d*:\d*:?\d*$/ } @ARGV) == @ARGV ) { # test lengths
     # say "all args are numbers - Simulate";
