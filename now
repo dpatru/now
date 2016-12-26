@@ -177,15 +177,9 @@ sub bash_complete {
 		 "--samples", "--tries");
     push @results, $opts{sunday}? "--monday": "--sunday";
     push @results, $opts{estimates}? "--noestimates": "--estimates";
-    if ($word eq "-") {
-      return grep { ! /--/ } @results;
-    }
-    elsif ($word eq "--") {
-      return grep { /--/ } @results;
-    }
-    else {
-      return grep {/$word/} @results;
-    }
+    return grep { ! /--/ } @results if $word eq "-";
+    return grep { /--/ } @results if $word eq "--";
+    return grep {/$word/} @results;
   }
   if ($prev_word =~/-\w*f$/) { # trying to set the nowfile
     return glob "'$word*'";
