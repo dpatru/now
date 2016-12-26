@@ -200,10 +200,8 @@ if ($in_bash_completion) { # called to complete
   # say for @choices[0..$max_choices-1];
   exit(0);
 }
-else { # called in regular manner
-  myGetOptions(\@ARGV) or pod2usage(2);
-  # say Dumper(\%opts);
-}
+
+myGetOptions(\@ARGV) or pod2usage(2);
 
 pod2usage(-verbose => 1) if $opts{h};
 pod2usage(-verbose => 2) if $opts{help};
@@ -240,10 +238,6 @@ sub parseTimestamp { # return a gmtime of timestamp
   return $t;
 }
 
-# saydebug parseTimestamp("2016-12-16 15:06:07");
-
-my ($t1, $t2);
-
 sub toHours {
   my $t = shift @_;
   if ($t =~ /(\d*\.?\d*):(\d*\.?\d*):?(\d*)/) {
@@ -254,7 +248,6 @@ sub toHours {
   return $t;
 };
 
-  
 sub parseLine {
   my ($t2, $line) = @_;
   if (my($timestamp, $est, $task) = $line =~ /(\d\d\d\d-\d\d-\d\d \d\d?:\d\d:\d\d)\s*(\d+.?\d*|\.\d+|\d*:\d+:?\d*)?\s+(.*)/) {
@@ -274,12 +267,6 @@ sub formatLine {
   my ($t, $et, $est, $task) = @_;
   sprintf("%s %5.2f %5.2f %s", timestamp($t), $et, $est, $task);
 };
-
-sub formatLine_header {
-  return "date  time  duration estimate task";
-};
-    
-
 
 sub addToTree {
   # add tuples to a tree ($et is a tuple)
@@ -343,7 +330,7 @@ sub printHours {
     $output .= " ";
   }
   return $output;
-};
+}; # end of printHours
 
 sub formatReportTotal {
   my ($t, $et, $task) = @_;
