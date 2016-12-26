@@ -700,23 +700,25 @@ sample [options] [file ...]
    --verbose | -v    print processed lines before reports
    --hours           print report in hours (default)
    --minutes         print report in minutes instead of hours
-   --hours-minutes   print report in hours and minutes instead of hours
+   --hours-minutes   print report in hours and minutes
    --nobreak         do not skip breaks
    --breakword stop  use "stop" as the breakword instead of "break".
    --estimates       show estimates when reporting
    --noestimates     turn off estimates when reporting
    --sunday          start the week on sunday for weekly reports
    --monday          start the week on monday (default)
-   --samples 1000    number of sample estimates to retrieve for the simulation
+   --samples 1000    number of sample estimates to use for simulation
    --tries 100       number of times to simulate
    -f mynowfile      use now file mynowfile (default is ~/.now)
    -t 5              show 5 tosks
    -d 5              show 5 days
    -w 5              show 5 weeks
+   -r task           resume from an interuption
+   --resume task     resume from an interuption
 
 =head1 OPTIONS
 
-=over 4
+=over 2
 
 =item B<-h>
 
@@ -742,7 +744,7 @@ are normally ignored when reporting.
 For weekly reporting, the week starts on Monday. According to 
 http://perldoc.perl.org/Time/Piece.html#Week-Number: 
 
-=over 4
+=over 2
 
 The week number may be an unknown concept to some readers. The ISO
 8601 standard defines that weeks begin on a Monday and week 1 of the
@@ -776,6 +778,46 @@ of simulations is the number of B<tries>. To get a more
 probabalistically accurate estimate, increase the number of
 B<tries>. A smaller B<samples> ignores older velocities.
 
+
+=item B<--resume task, -r task>
+
+Resume a task that has been interupted. This command will try to
+rewrite the nowfile to correct an estimate with respect to an
+interuption. The goal is to make it easy to recover from an
+interuption so that it is recorded. An example should make this clear.
+
+Note that the task name must match exactly. But this is easy to do
+with autocomplete.
+
+=over 2
+
+$ B<now 2 a>
+
+$ # work for an hour
+
+$ B<now interuption>
+
+$ B<now -t 2>
+
+xxxx-xx-xx 00:00:00 1hr/3hr a
+
+xxxx-xx-xx 01:00:00 xhr/    interuption
+
+$ B<now -r a; now -t 3>
+
+xxxx-xx-xx 00:00:00 1hr/1hr a
+
+xxxx-xx-xx 01:00:00 xhr/    interuption
+
+xxxx-xx-xx 01:10:00 0hr/2hr a
+
+$ # Note that the first a's estimate was reset to 1hr, the amount
+used, while the rest of the estimate was used for the second a. The
+interuption did not ruin the estimate.
+
+=back
+
+
 =back
 
 =head1 DESCRIPTION
@@ -799,17 +841,20 @@ task will be appended the .now file with the current time.  Call
 B<now> with a new task, or a "break" task when the current task is
 done.
 
-=over 4
+=over 2
 
 now programming: finish docs # start tracking "programming: docs" now
 
 =back
 
-You can also add an estimate (integer). 
+You can also add an estimate in hours or h:m. 
 
-=over 4
+=over 2
 
-now 10 my task # start tracking "my task" now, estimate 10 minutes
+now :10 my task # start tracking "my task" now, estimate 10 minutes
+
+now 2.5 my long task # start tracking "my long task" now, estimate 2.5 hours
+
 
 =back
 
@@ -827,12 +872,26 @@ Calling B<now> with a list of estimates will produce a time range
 based on past estimates in the now file. See evidence-based scheduling
 and http://www.joelonsoftware.com/items/2007/10/26.html.
 
+
+=head1 HOW TO INSTALL
+
+Put the B<now> perl file somewhere in your path. Add the following line to your ~/.profile:
+
+=over 2
+
+# call the command now to autocomplete now (now is it's own autocompletor.
+
+complete -C now now 
+
+=back
+
+
 =head1 CUSTOMIZATION
 
 You can set some options using environment variables. The following is
 a sample ~/.profile.
 
-=over 4
+=over 2
 
 # set the .now file to ~/mydir/.now
 
