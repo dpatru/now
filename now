@@ -43,6 +43,7 @@ sub myGetOptions {
       'sunday', 'monday',
       'DEBUG', 'NODEBUG',
       'samples=i', 'tries=i',
+      'resume|r',
       't=i', 'w=i', 'd=i', 'y=i', 'f=s'
     );
     
@@ -483,7 +484,57 @@ sub simulate {
 
 if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
   # say "there are still arguments: " . join ', ', @ARGV;
-  if ( (grep { looks_like_number($_) or /^\d*:\d*:?\d*$/ } @ARGV) == @ARGV ) { # test lengths
+  if ($opts{resume}){
+    say "Resuming an interupted task . . .";
+
+    my (undef, $EST, $TASK, $t1, $t2, $et, $est, $task, $match, $linenumber, $templine);
+    $t2 = gmtime; $t2 += localtime->tzoffset;
+    $templine = timestamp($t2) . " " . join " ", @ARGV;
+    die "Couldn't parse arguments $templine"
+      if ! ((undef, undef, $EST, $TASK) = parseLine($t2, $templine));
+
+    say "est = $EST, task = $TASK";
+    
+    die "New estimate $est must be non-negative." if $EST < 0;
+    
+    open my $fh, '<', "$opts{f}" or die "Could not open for reading nowfile '$opts{f}' $!";
+    my @tasks = reverse <$fh>;
+
+    $linenumber = 0;
+    for my $line (@tasks) {
+      say "Looking at $line";
+      if (($t1, $et, $est, $task) = parseLine($t2, $line)) {
+	say "Parsed $line - t1 = $t1, est = $est, task = $task.";
+	if ($task eq $TASK) {
+	  if (!$EST) {
+	    if (!$est || $est <= 0) { die "Found task ($task) but no estimate ($est)."; }
+	    $EST = $est;
+	  }
+	  elsif ($est ne $EST) {
+	    warn "Changing original estimate ($est to $EST).";
+	  }
+	  if ($EST < $et) {
+	    die sprintf("New estimate %.02f is less than previous time spent (%.02f).",
+			$EST, $et);
+	  }
+	  $match = 1;
+	  last;
+	}
+	$t2 = $t1;
+      }
+      $linenumber++;
+    }
+    die "Could not find a matching task to resume. ($task)" if !$match;
+    say "task $task matches at line $linenumber";
+    $tasks[$linenumber] = timestamp($t1) . " $et $TASK\n";
+    unshift @tasks, sprintf("%s %f %s\n", timestampnow, $EST - ($et), $TASK);
+    open $fh, '>', "$opts{f}" or die "Could not open for writing nowfile '$opts{f}'";
+    print $fh $_ for reverse @tasks;
+    close $fh or die "Could not close nowfile '$opts{f}' $!";
+    say "done";
+    say for reverse @tasks;
+  }
+  elsif ( (grep { looks_like_number($_) or /^\d*:\d*:?\d*$/ } @ARGV) == @ARGV ) { # test lengths
     # say "all args are numbers - Simulate";
     my @hours = map {toHours $_} @ARGV;
     # say join ', ', @hours;
