@@ -203,9 +203,9 @@ sub bash_complete {
   my $max_lines_to_read = $ENV{NOW_COMPLETION_HISTORY} || 1000;
   @results = grep { s/^\d\d\d\d-\d\d-\d\d[ T]\d\d:\d\d:\d\d [\d:.]*\s*// }
     reverseTail $opts{f}, $max_lines_to_read;
-  $word =~ s/^\s+|\s+$//;
+  $word =~ s/^\s+|\s+$|^\s*[\d.:]+\s*$//g;
   my $words = join ' ', @argv;
-  $words =~ s/^\s*[\d:\.]*\s+//; # take off estimates
+  $words =~ s/^\s*[\d:.]+\s*//; # take off estimates
   if ($word) {
     $words =~ s/$word$//; # take off word
     return grep { s/$words$word/$word/ } @results if $words;
