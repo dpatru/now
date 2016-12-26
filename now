@@ -69,6 +69,7 @@ sub myGetOptions {
   };
   
   setOption("DEBUG", "NODEBUG", "NOW_DEBUG", 0);
+  setOption("silent", "n/a", "NOW_SILENT", 0);
   setOption("estimates", "noestimates", "NOW_ESTIMATES", 0);
   setOption("verbose", "noverbose", "NOW_VERBOSE", 0);
   setOption("sunday", "monday", "NOW_SUNDAY", 0);
@@ -844,7 +845,11 @@ export NOW_qFILE=~/mydir/.now
 
 export NOW_BREAK_WORD=stop,break,quit,done
 
-# Include estimates in reports.
+# Silent operation
+
+export NOW_SILENT=1
+
+# include estimates in reports.
 
 export NOW_ESTIMATES=1
 
