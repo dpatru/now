@@ -64,7 +64,7 @@ sub myGetOptions {
     }
     else {
       $opts{$option} = $default;
-      saydebug "$option set by $default by default.";
+      saydebug "$option set to $default by default.";
     }
   };
   
@@ -654,10 +654,12 @@ sub getWeek {
   my $t = shift @_;
   
   # If it's Sunday, then bump up the time to Monday so that the week number is correct.
-  my $t2 = $opts{sunday} && $t->_wday == 0? $t + * ONE_DAY: $t;
+  my $t2 = $opts{sunday} && $t->_wday == 0? $t + ONE_DAY: $t;
 
   my $firstday = $opts{sunday}? $t - $t->_wday * ONE_DAY:
-    $t - ($t->_wday - 1)*ONE_DAY;
+  $t->_wday? $t - ($t->_wday - 1)*ONE_DAY:
+  $t - 6*ONE_DAY;
+  
 
   my $r = $t2->year . " week " . $t2->week . " beginning " .
     $firstday->wdayname . " " . $firstday->date;
