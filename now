@@ -692,6 +692,7 @@ sample [options] [file ...]
    -w 5              show 5 weeks
    -r task           resume from an interuption
    --resume task     resume from an interuption
+   --DEBUG           show settings
 
 =head1 OPTIONS
 
@@ -802,6 +803,11 @@ used, while the rest of the estimate was used for the second a. The
 interuption did not ruin the estimate.
 
 =back
+
+=item B<--DEBUG>
+
+Print the settings (nowfile, verbose, sunday, ...) to stderr before
+running. 
 
 
 =back
@@ -918,7 +924,9 @@ export NOW_COMPLETION_HISTORY=1000
 
 export NOW_COMPLETION_CHOICES=20
 
+# Set the DEBUG flag (show settings)
 
+export NOW_DEBUG=1
 
 =back
 
