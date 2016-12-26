@@ -543,7 +543,7 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
   }
   else {
     # say "NOT all args are numbers - Add a task";
-    my $task = join ' ', @ARGV;
+    my $task = join ' ', @ARGV; $task =~ s/^\s+|\s+$//g;
     if (!$opts{silent}) {
       say "starting $task"
     }
