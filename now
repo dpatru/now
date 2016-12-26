@@ -419,10 +419,10 @@ sub simulate {
   my @te = map {sprintf("%.2f", $_)} @estimates; # truncated estimates for printing
   if (@estimates > 1) { 
     say "Simulating tasks of " . join(', ', @te). " = " .
-      sum(@te) . " total, printing percentiles . . . ";
+      sum(@te) . " total, percentiles . . . ";
   }
   else {
-    say "Simulating task of $te[0], printing percentiles . . . ";
+    say "Simulating task of $te[0], percentiles . . . ";
   }
   my @velocities = getVelocities $sample;
   # say "velocities = " . join ',', @velocities;
@@ -434,10 +434,10 @@ sub simulate {
     for (@estimates) { $t += 1.0 * $_ * $velocities[rand @velocities]; }
     unshift @times, $t;
   }
-  say "     5%     15%     25%     35%     45%     55%     65%     75%     85%     95%";
+  say "    5%    15%    25%    35%    45%    55%    65%    75%    85%    95%";
   my $step = $tries / 10.0;
   my @stimes = sort { $a <=> $b } @times;
-  say join ' ', map { sprintf("%7.0f", $stimes[$step * ($_ + .5)]) } (0..9);
+  say join ' ', map { sprintf("%6.0f", $stimes[$step * ($_ + .5)]) } (0..9);
 };
 
 
