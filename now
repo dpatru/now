@@ -308,13 +308,18 @@ sub formatLine_header {
 
 
 sub addToTree {
+  # add tuples to a tree ($et is a tuple)
   my ($tree, $et, @categories) = @_;
   # saydebug "addToTree: " . join ', ', @{$et};
   for (@categories) {
     if (exists $tree->{$_}) {$tree = $tree->{$_};}
     else {$tree = $tree->{$_} = {};}
   }
-  $tree->{''} = $et; # $et can be a list or o scalar.
+  if ($tree->{''}) {
+    my @a = pairwise { $a + $b } @{$tree->{''}}, @{$et};
+    $tree->{''} = \@a;
+  }
+  else { $tree->{''} = $et; } 
 };
 
 my $hourDigits = 8;
