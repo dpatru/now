@@ -132,29 +132,11 @@ sub myGetOptions {
   return $success;
 }; # end myGetOptions
 
-sub reverseTail { # get last n lines
-  my ($filename, $n) = @_;
-  use File::ReadBackwards;
-  # Tied Handle Interface
-  my @lines;
-  tie *BW, 'File::ReadBackwards', $opts{f} or
-    die "can't read .now file ($opts{f}) $!" ;
-  while( <BW> ) {
-    last if $n-- <= 0;
-    # say "reading line $_";
-    chomp;
-    push @lines, $_;
-  }
-  return @lines;
-};
-
 sub bash_complete {
   # This is called when this script is used to for bash
   # autocompletion.  It takes as its arguments the arguments passed to
-  # the script (command, word, prev_word). It returns a list of
-  # completions.
-  
-  # The following envoronment variables are set:
+  # the script (command, word, prev_word). It outputs lines to
+  # stdout. The following envoronment variables are set:
 
   # COMP_KEY: The keyboard key that was last pressed to invoke
   # completion, normally 9.
@@ -163,60 +145,57 @@ sub bash_complete {
 
   # COMP_POINT: The character index of the curser on the command line.
 
-  # COMP_TYPE: The type of completion:
-  #            [tab] 9 for inline,
-  #            [tab][tab] 63 for below the line.
+  # COMP_TYPE: The type of completion: 9->[tab], 63->[tab][tab].
 
   my($command, $word, $prev_word) = @_;
   # say "0000argv = $command, $word, $prev_word";
-  my @results;
-  if ($word =~ /^-/) { # show options
-    @results = ( "-d", "-w", "-y", "-f",
-		 "-h", "--help", "--verbose",
-		 "--minutes", "--hours-minutes",
-		 "--samples", "--tries");
-    push @results, $opts{sunday}? "--monday": "--sunday";
-    push @results, $opts{estimates}? "--noestimates": "--estimates";
-    return grep { ! /--/ } @results if $word eq "-";
-    return grep { /--/ } @results if $word eq "--";
-    return grep {/$word/} @results;
-  }
+  my @dash_options =  ( "-d", "-w", "-y", "-f", "-h" );
+  my @ddash_options = ( "--help", "--verbose", "--minutes",
+			"--hours-minutes", "--samples", "--tries" );
   if ($prev_word =~/-\w*f$/) { # trying to set the nowfile
-    return glob "'$word*'";
+    say for glob "'$word*'";
   }
-
-  # return non-options (tasks), first process options to get the right nowfile.
-  my $argv = $ENV{COMP_LINE};
-  $argv =~ s/^\s*\w+\s*//; # strip first argument (program name)
-  my @argv = shellwords(($argv,));
-  eval { myGetOptions( \@argv ); };
-  if (!$opts{f} or ! -f $opts{f}) {
-    die "Can't complete with no nowfile.";
-  }
-  # show tasks
-  my $max_lines_to_read = $ENV{NOW_COMPLETION_HISTORY} || 1000;
-  @results = grep { s/^\d\d\d\d-\d\d-\d\d[ T]\d\d:\d\d:\d\d [\d:.]*\s*// }
-    reverseTail $opts{f}, $max_lines_to_read;
-  $word =~ s/^\s+|\s+$|^\s*[\d.:]+\s*$//g;
-  my $words = join ' ', @argv;
-  $words =~ s/^\s*[\d:.]+\s*//; # take off estimates
-  if ($word) {
-    $words =~ s/$word$//; # take off word
-    return grep { s/$words$word/$word/ } @results if $words;
-    return grep { /^$word/ } @results if not $words;
-  }
-  else {
-    return grep { s/$words\s*// } @results if $words;
-    return @results;
-  }
+  elsif ($word eq "-") { say for @dash_options; }
+  elsif ($word eq "--") { say @ddash_options; }
+  elsif ($word =~ /^--/) { say for grep { /$word/ } @ddash_options; }
+  elsif ($word =~ /^-/) { say for grep { /$word/ } @dash_options; }
+  else { # show tasks
+    my $argv = $ENV{COMP_LINE};
+    $argv =~ s/^\s*\w+\s*//; # strip first argument (program name)
+    my @argv = shellwords(($argv,));
+    eval { myGetOptions( \@argv ); };
+    die "Can't complete with no nowfile." if !$opts{f} or ! -f $opts{f};
+    my $file = File::ReadBackwards->new( "$opts{f}" ) or 
+      die "can't read .now file ($opts{f}) $!" ;
+    my $words = join ' ', @argv;
+    # take off leading spaces, estimates, and current word
+    $words =~ s/^\s+|^[\d:.]+\s+|$word$//g;
+    my $max_lines_to_read = $ENV{NOW_COMPLETION_HISTORY} || 1000;
+    my $max_choices = $ENV{NOW_COMPLETION_CHOICES} || 20;
+    my $line;
+    while ( defined( $line = $file->readline )) {
+      last if $max_lines_to_read-- <= 0;
+      if ($line =~ /^\d\d\d\d-\d\d-\d\d[ T]\d\d:\d\d:\d\d [\d:.]*\s*($words($word.*))/) {
+	next if grep { /^$1$/ } @{$opts{breakword}};
+	last if $max_choices-- <= 0;
+	# warn "1 = $1, 2 = $2";
+	my $result = $2;
+	$result =~ s/^\s+|\s+$//g;
+	say $result;
+      }
+      else {
+	# warn "no match ($words) ($word) for line $line";
+      }
+  }}
 }; # end bash_complete
 
 
 if ($in_bash_completion) { # called to complete
   # say "in commandline completion . . .";
   my $max_choices = $ENV{NOW_COMPLETION_CHOICES} || 20;
-  my @choices = bash_complete (@ARGV);
-  say for @choices[0..$max_choices-1];
+  bash_complete (@ARGV);
+  # my @choices = bash_complete (@ARGV);
+  # say for @choices[0..$max_choices-1];
   exit(0);
 }
 else { # called in regular manner
@@ -236,13 +215,9 @@ pod2usage("$0: options t, w, and d accept only non-negative integers.")
   if $opts{t} < 0 || $opts{d} < 0 || $opts{w} < 0;
 
 
-sub timestampnow {
-  my $t = Time::Piece->new;
-  return timestamp($t);
-}
-
 sub timestamp {
-  my $t = shift @_;
+  # Return a times
+  my $t = shift @_ || Time::Piece->new;
   return $t->date . ' ' . $t->time;
 };
 # say timestamp();
@@ -522,7 +497,7 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
     die "Could not find a matching task to resume. ($task)" if !$match;
     saydebug "task $task matches at line $linenumber";
     $tasks[$linenumber] = timestamp($t1) . " $et $TASK\n";
-    unshift @tasks, sprintf("%s %f %s\n", timestampnow, $EST - ($et), $TASK);
+    unshift @tasks, sprintf("%s %f %s\n", timestamp, $EST - ($et), $TASK);
     open $fh, '>', "$opts{f}" or die "Could not open for writing nowfile '$opts{f}'";
     print $fh $_ for reverse @tasks;
     close $fh or die "Could not close nowfile '$opts{f}' $!";
@@ -542,7 +517,7 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
       say "starting $task"
     }
     open(my $fh, '>>', $opts{f}) or die "Could not open file '$opts{f}' $!";
-    say $fh timestampnow() . " " . $task;
+    say $fh timestamp() . " " . $task;
     close $fh; 
   }
 }
