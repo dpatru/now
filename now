@@ -34,6 +34,7 @@ sub myGetOptions {
     ( $argv, \%opts,
       'h|?', 'help|man', 'version', 'verbose|v',
       'hours', 'minutes', 'hours-minutes',
+      'pretty|p', 'ugly|u',
       'silent|s', 'nobreak', 'breakword=s@',
       'estimates', 'noestimates',
       'sunday', 'monday',
@@ -71,6 +72,7 @@ sub myGetOptions {
   setOption("sunday", "monday", "NOW_SUNDAY", 0);
   setOption("samples", "n/a", "NOW_SAMPLES", 50);
   setOption("tries", "n/a", "NOW_TRIES", 1000);
+  setOption("pretty", "ugly", "NOW_PRETTY", 1);
   
   sub setNowfile {
     # not a normal option because we look for the nowfile in multiple
@@ -393,10 +395,10 @@ sub printReport {
       }
     }
     return [$sum, $estsum];
-  };
+  }; # end _p
   # _p(0, $r);
   for my $k (reverse sort keys %{ $r }) {
-    my $t = _p($k, "", $r->{$k});
+    my $t = _p($opts{pretty}? "   ": $k, "", $r->{$k});
     unshift @output_lines, "\n$k ". printHours($t) . "(total)";
   }
   say for @output_lines;
@@ -752,6 +754,15 @@ and the 5th, 15th, 25th, ..., 95th percentiles are taken. The number
 of simulations is the number of B<tries>. To get a more
 probabalistically accurate estimate, increase the number of
 B<tries>. A smaller B<samples> ignores older velocities.
+
+=item B<--pretty, -p>
+
+Pretty-print reports. Don't print the datetime for every line. This gives a cleaner look. The 
+
+
+=item B<--ugly, -u>
+
+Ugly-print reports. Print the datetime for every line. This may be more useful for filling out timesheets as it reduces eye-movement.
 
 
 =item B<--resume task, -r task>
