@@ -283,7 +283,7 @@ sub toHours {
   
 sub parseLine {
   my ($t2, $line) = @_;
-  if (my($timestamp, $est, $task) = $line =~ /(\d+\-\d+\-\d+ \d+:\d+:\d+)\s*(\d+.?\d*|\.\d+|\d*:\d+:?\d*)?\s+(.*)/) {
+  if (my($timestamp, $est, $task) = $line =~ /(\d\d\d\d-\d\d-\d\d \d\d?:\d\d:\d\d)\s*(\d+.?\d*|\.\d+|\d*:\d+:?\d*)?\s+(.*)/) {
     my $t1 = parseTimestamp($timestamp);
     if ($t1) {
       my $et = sprintf("%.2f", ($t2 - $t1)/3600.0);
