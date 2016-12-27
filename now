@@ -495,7 +495,7 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
     close $fh or die "Could not close nowfile '$opts{f}' $!";
     # say "done";
     # say for reverse @tasks;
-  }
+  } # end resuming case
   elsif ( (grep { looks_like_number($_) or /^\d*:\d*:?\d*$/ } @ARGV) == @ARGV ) { # test lengths
     # say "all args are numbers - Simulate";
     my @hours = map {toHours $_} @ARGV;
@@ -506,11 +506,16 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
     # say "NOT all args are numbers - Add a task";
     my $task = join ' ', @ARGV; $task =~ s/^\s+|\s+$//g;
     if (!$opts{silent}) {
-      say "starting $task"
+      say "starting $task";
+      if ($task =~ /^([\d.:]+)\s/) { # an estimate was given, simulate
+	my $est = toHours $1;
+	simulate($opts{samples}, $opts{tries}, ( $est, )) if $est;
+      }
     }
     open(my $fh, '>>', $opts{f}) or die "Could not open file '$opts{f}' $!";
     say $fh timestamp() . " " . $task;
-    close $fh; 
+    close $fh;
+    
   }
 }
 
@@ -733,18 +738,20 @@ NOW_SUNDAY=1.
 
 When simulating tasks, there are two parameters that can be
 adjusted. B<samples> is the number of velocities that are pulled from
-the nowfile. (A velocity is the ratio of time spent on a task divided
-by the estimate. A velocity of 1 means that time went as expected. A
-velocity of 2 means that time went twice as fast as expected.) The
+the nowfile. (A velocity is the ratio of the estimated time divided
+by the actual. A velocity of 1 means that time went as expected. A
+velocity of 2 means that task went twice as fast as expected.) The
 velocities are taken in reverse order (from the bottom of the
 nowfile).
 
-Once the samples are taken, the task is simulated by multiplying the
+Once the samples are taken, the task is simulated by dividing the
 estimates by a randomly chosen velocity. The results are then sorted
 and the 5th, 15th, 25th, ..., 95th percentiles are taken. The number
 of simulations is the number of B<tries>. To get a more
 probabalistically accurate estimate, increase the number of
 B<tries>. A smaller B<samples> ignores older velocities.
+
+See https://www.joelonsoftware.com/2007/10/26/evidence-based-scheduling/ for more information.
 
 =item B<--pretty, -p>
 
@@ -874,6 +881,8 @@ In this case, you should have split up your one hour task into samller
 tasks of perhaps fifteen minutes. If you first 15-minutes task. Then
 you would have had up to an hour and a half to complete your
 fifteen-minute task before being interupted.
+
+
 
 =head1 HOW TO INSTALL
 
