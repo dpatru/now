@@ -854,6 +854,26 @@ Calling B<now> with a list of estimates will produce a time range
 based on past estimates in the now file. See evidence-based scheduling
 and http://www.joelonsoftware.com/items/2007/10/26.html.
 
+=head1 HOW TO USE THIS FOR ESTIMATING
+
+Past estimates are taken from past tasks for which estimates are
+given. IT IS ASSUMED THAT TASKS ARE COMPLETED. So once you give an
+estimate, strive to complete the task. If you don't complete it, don't
+give the estimate, because the estimate will not mean anything. This
+may mean that you will have to track very small tasks (with small
+estimates) so that you can actually complete them.
+
+For example, if you estimate that task A should take 1 hour, and you
+wark on it for an hour and thirty minutes and then are interupted and
+work on something else without completing task A, then B<now> will
+think that you actually completed the task at 150% of your estimate,
+when you actually did potentially far worse. Your smulation results
+will be off.
+
+In this case, you should have split up your one hour task into samller
+tasks of perhaps fifteen minutes. If you first 15-minutes task. Then
+you would have had up to an hour and a half to complete your
+fifteen-minute task before being interupted.
 
 =head1 HOW TO INSTALL
 
