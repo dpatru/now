@@ -408,8 +408,8 @@ sub getVelocities { # get some velocities to simulate with
     die "can't read .now file ($opts{f}) $!" ;
   while( <BW> ) {
     chomp;
-    if (($t2, $et, $est, $task) = parseLine($t2, $_) and $est) {
-      unshift @velocities, $et * 1.0 / $est;
+    if (($t2, $et, $est, $task) = parseLine($t2, $_) and $est > 0 and $et > 0) {
+      unshift @velocities, $est * 1.0 / $et;
       last if $n-- <= 0;
     }}
   say "got " . ($#velocities + 1) . " velocities" if $opts{verbose};
