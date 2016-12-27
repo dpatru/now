@@ -440,6 +440,7 @@ sub simulate {
   my $step = $tries / 10.0;
   my @stimes = sort { $a <=> $b } @times;
   say join ' ', map { sprintf("%6.0f", $stimes[$step * ($_ + .5)]) } (0..9);
+  say "(based on $#velocities sample estimates and $tries simulations)";
 };
 
 
