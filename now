@@ -12,7 +12,8 @@ use Scalar::Util qw(looks_like_number);
 use List::Util qw(sum);
 use Carp::Assert qw(assert should);
 use Text::ParseWords qw(shellwords);
-use List::MoreUtils 'pairwise';
+use List::MoreUtils qw(pairwise);
+use File::Basename; # exposes basename and dirname
 
 # Check if we're being called to autocomplete.
 my @completion_flags = ( "COMP_LINE", "COMP_POINT", "COMP_KEY", "COMP_TYPE" );
@@ -34,7 +35,8 @@ sub myGetOptions {
     ( $argv, \%opts,
       'h|?', 'help|man', 'version', 'verbose|v',
       'hours', 'minutes', 'hours-minutes',
-      'pretty|p', 'ugly|u',
+      'pretty', 'ugly',
+      'project|p',
       'silent|s', 'nobreak', 'breakword=s@',
       'estimates', 'noestimates',
       'sunday', 'monday',
@@ -74,33 +76,50 @@ sub myGetOptions {
   setOption("tries", "n/a", "NOW_TRIES", 1000);
   setOption("pretty", "ugly", "NOW_PRETTY", 1);
   
-  sub setNowfile {
-    # not a normal option because we look for the nowfile in multiple
+  sub setFileOption {
+    # not a normal option because we look for the file in multiple
     # places.
-    if ($opts{f}) { 
-      saydebug "nowfile set by commandline";
-    return;
+    my ($name, $option, $env, @defaults) = @_;
+    my $setter;
+    if ( exists $opts{$option} ) {
+      $setter = "commandline";
+      die "now: ERROR: cannot set nowfile to empty string."
+	if  $option eq "f";
     }
-    elsif ( -e (glob $ENV{NOW_FILE} )) {
-      $opts{f} = $ENV{NOW_FILE};
-      saydebug "nowfile set by environment to $ENV{NOW_FILE}";
-      return;
+    elsif ( -e $ENV{$env} ) {
+      $setter = "environment";
+      $opts{$option} = $ENV{$env};
     }
-    my $f = File::HomeDir->my_home . "/Dropbox/.now";
-    $f = File::HomeDir->my_home . "/.now" if not -e $f;
-    if ( -e $f ) {
-      $opts{f} = $f;
-      saydebug "nowfile set to $f by default.";
-      return;
+    else {
+      $setter = "default";
+      for my $f (@defaults) { # look for existing defaults
+	if (-f $f) {
+	  $opts{$option} = $f;
+	  last;
+	}
+      }
+      if (! $opts{$option}) { # look for existing directory
+	for my $f (@defaults) { # make new file
+	  my ($b, $d) = (basename $f, dirname $f);
+	  if (-d $d) {
+	    $opts{$option} = $f;
+	    last;
+	  }
+	}
+      }
+      if (! $opts{$option} ) {
+	die "Could not set $name.";
+      }
     }
-  my $d = File::HomeDir->my_home . "/Dropbox";
-    $d = File::HomeDir->my_home if not -d $d;
-    $opts{f} = "$d/.now";
-    saydebug "nowfile set to $opts{f} by default.";
-  }
-  
-  setNowfile;
-  
+    saydebug "$name set by $setter to $opts{$option}";
+  };
+  setFileOption("Nowfile", "f", "NOW_FILE",
+		( File::HomeDir->my_home . "/Dropbox/.now",
+		  File::HomeDir->my_home . "/.now" ));
+  setFileOption("Projectfile", "", "NOW_PROJECTS",
+		( File::HomeDir->my_home . "/Dropbox/.projects",
+		  File::HomeDir->my_home . "/.projects" ));
+		
   sub setBreakword {
     # not a normal option because breakwords are an array and they
     # also get split on commas.
@@ -753,12 +772,12 @@ B<tries>. A smaller B<samples> ignores older velocities.
 
 See https://www.joelonsoftware.com/2007/10/26/evidence-based-scheduling/ for more information.
 
-=item B<--pretty, -p>
+=item B<--pretty>
 
 Pretty-print reports. Don't print the datetime for every line. This gives a cleaner look. The 
 
 
-=item B<--ugly, -u>
+=item B<--ugly>
 
 Ugly-print reports. Print the datetime for every line. This may be more useful for filling out timesheets as it reduces eye-movement.
 
