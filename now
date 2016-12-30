@@ -832,6 +832,7 @@ B<now -r a>            # Resume task a.
 
 B<now -r 5 a>          # Resume task a, changing estimated time to 5hrs.
 
+B<now -e>              # Simulate the projects in the project file.
 
 =head1 SYNOPSIS
 
@@ -929,13 +930,24 @@ See https://www.joelonsoftware.com/2007/10/26/evidence-based-scheduling/ for mor
 
 =item B<--pretty>
 
-Pretty-print reports. Don't print the datetime for every line. This gives a cleaner look. The 
-
+Pretty-print reports. Don't print the datetime for every line. This
+gives a cleaner look. 
 
 =item B<--ugly>
 
-Ugly-print reports. Print the datetime for every line. This may be more useful for filling out timesheets as it reduces eye-movement.
+Ugly-print reports. Print the datetime for every line. This may be
+more useful for filling out timesheets as it reduces eye-movement.
 
+=item B<--projects projectfile.org, -p projectfile.org>
+
+Sets the projects file. Should be in org-mode format with (optional)
+estimates at the end of headers. This can also be set by environment
+variable. By default, projects files are located at
+~/Dropbox/.projects.org or ~/.projects.
+
+=item B<-e>
+
+Estimate how long each project in the project file will take.
 
 =item B<--resume task, -r task>
 
@@ -1045,18 +1057,20 @@ may mean that you will have to track very small tasks (with small
 estimates) so that you can actually complete them.
 
 For example, if you estimate that task A should take 1 hour, and you
-wark on it for an hour and thirty minutes and then are interupted and
+work on it for an hour and thirty minutes and then are interupted and
 work on something else without completing task A, then B<now> will
 think that you actually completed the task at 150% of your estimate,
 when you actually did potentially far worse. Your smulation results
 will be off.
 
 In this case, you should have split up your one hour task into samller
-tasks of perhaps fifteen minutes. If you first 15-minutes task. Then
-you would have had up to an hour and a half to complete your
-fifteen-minute task before being interupted.
+tasks of perhaps fifteen minutes. Then you would have had up to an
+hour and a half to complete your fifteen-minute task before being
+interupted.
 
-
+To get the most from B<now>, use break up your work into lots of
+little tasks with relatively small estimates. When you start a task,
+strive to finish it.
 
 =head1 HOW TO INSTALL
 
@@ -1120,6 +1134,11 @@ export NOW_COMPLETION_CHOICES=20
 # Set the DEBUG flag (show settings)
 
 export NOW_DEBUG=1
+
+# Set the projects file
+
+export NOW_PROJECTS=~/myprojects.org
+
 
 =back
 
