@@ -242,7 +242,8 @@ sub bash_complete {
 	  say bashq($result);
 	} }
       return;
-    }
+    } # done with complete from projects
+    # complete from .now file
     my $file = File::ReadBackwards->new( "$opts{f}" ) or 
       die "can't read .now file ($opts{f}) $!" ;
     while ( defined( $line = $file->readline )) {
@@ -254,7 +255,7 @@ sub bash_complete {
 	# warn "2 = $2, 3 = $3";
 	my $result = $3;
 	$result =~ s/^\s+|\s+$//g;
-	say $result;
+	say bashq($result);
       }
       else {
 	# warn "no match ($words) ($word) for line $line";
