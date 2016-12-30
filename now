@@ -1,7 +1,6 @@
 #!/usr/local/bin/perl
 
 use strict;
-use v5.10; # allows use of say
 use Getopt::Long qw(GetOptionsFromArray :config require_order bundling);
 use Pod::Usage qw(pod2usage);
 use Time::Piece;
@@ -9,15 +8,43 @@ use Data::Dumper;
 use File::HomeDir;
 use Time::Seconds;
 use Scalar::Util qw(looks_like_number);
-use List::Util qw(sum);
+use List::Util qw(sum any);
 use Carp::Assert qw(assert should);
 use Text::ParseWords qw(shellwords);
 use List::MoreUtils qw(pairwise);
 use File::Basename; # exposes basename and dirname
+use List::Flatten; # flat
+use feature 'signatures';
+use v5.20; # use say and signatures
+use feature qw(signatures);
+no warnings qw(experimental::signatures);
 
+# Treat a reference to a hash as a tree, insert val 
+sub treeInsert ($tree, $val, $path,
+		$combine = sub ($x, $y) { $a + $b }){
+  my $t = $tree;
+  # say "\nInserting value $val into tree " . Dumper($t);
+  die "treeInsert: ERROR: path component is empty string."
+    if any {$_ eq ''} @$path;
+  $t = exists $t->{$_}? $t->{$_}: ($t->{$_} = {})  for (@$path);
+  $a = $$t{''}; $b = $val;
+  $$t{''} = $combine->($$t{''}, $val);
+  # say "Inserted value $val into tree " . Dumper($tree);
+};
+
+sub test_treeInsert {
+  my ($tree, $val, $add1, $add2) = ({}, 2, { $a + $b + 1}, sub ($j, $h){ $j+$h+2});
+  my @path = split ',', "a,b,c";
+  treeInsert($tree, 1, \@path);
+  treeInsert($tree, 2, \@path, sub ($j, $h){ $j+$h+2});
+  treeInsert($tree, 3, \@path, sub { $a + $b + 1});
+  my @bad = ("a", "", "c");
+  treeInsert($tree, 4, \@bad, sub { $a + $b + 1});
+};
+  
 # Check if we're being called to autocomplete.
 my @completion_flags = ( "COMP_LINE", "COMP_POINT", "COMP_KEY", "COMP_TYPE" );
-my $in_bash_completion = grep { exists $ENV{$_} } @completion_flags;
+my $in_bash_completion = any { exists $ENV{$_} } @completion_flags;
 
 # Check if there are no arguments. This means we will be printing the last few lines.
 my $no_args = @ARGV == 0;
@@ -36,9 +63,10 @@ sub myGetOptions {
       'h|?', 'help|man', 'version', 'verbose|v',
       'hours', 'minutes', 'hours-minutes',
       'pretty', 'ugly',
-      'project|p',
+      'projects|p=s',
       'silent|s', 'nobreak', 'breakword=s@',
       'estimates', 'noestimates',
+      'e',
       'sunday', 'monday',
       'DEBUG', 'NODEBUG',
       'samples=i', 'tries=i',
@@ -99,6 +127,10 @@ sub myGetOptions {
 	}
       }
       if (! $opts{$option}) { # look for existing directory
+	if ($name ne "Nowfile") {
+	  saydebug "$name not set.";
+	  return;
+	}
 	for my $f (@defaults) { # make new file
 	  my ($b, $d) = (basename $f, dirname $f);
 	  if (-d $d) {
@@ -116,10 +148,9 @@ sub myGetOptions {
   setFileOption("Nowfile", "f", "NOW_FILE",
 		( File::HomeDir->my_home . "/Dropbox/.now",
 		  File::HomeDir->my_home . "/.now" ));
-  setFileOption("Projectfile", "", "NOW_PROJECTS",
-		( File::HomeDir->my_home . "/Dropbox/.projects",
-		  File::HomeDir->my_home . "/.projects" ));
-		
+  setFileOption("Projectfile", "projects", "NOW_PROJECTS",
+		( File::HomeDir->my_home . "/Dropbox/.projects.org",
+		  File::HomeDir->my_home . "/.projects.org" ));
   sub setBreakword {
     # not a normal option because breakwords are an array and they
     # also get split on commas.
@@ -178,16 +209,14 @@ sub bash_complete {
   }
   elsif ($word eq "-") { say for @dash_options; }
   elsif ($word eq "--") { say @ddash_options; }
-  elsif ($word =~ /^--/) { say for grep { /$word/ } @ddash_options; }
-  elsif ($word =~ /^-/) { say for grep { /$word/ } @dash_options; }
+  elsif ($word =~ /^--/) { say for any { /$word/ } @ddash_options; }
+  elsif ($word =~ /^-/) { say for any { /$word/ } @dash_options; }
   else { # show tasks
     my $argv = $ENV{COMP_LINE};
     $argv =~ s/^\s*\w+\s*//; # strip first argument (program name)
     my @argv = shellwords(($argv,));
     eval { myGetOptions( \@argv ); };
     die "Can't complete with no nowfile." if !$opts{f} or ! -f $opts{f};
-    my $file = File::ReadBackwards->new( "$opts{f}" ) or 
-      die "can't read .now file ($opts{f}) $!" ;
     my $words = join ' ', @argv;
     my $est_in_words = 1 if /^[\d.:]+\s*/;
     # take off leading spaces, estimates, and current word
@@ -195,10 +224,21 @@ sub bash_complete {
     my $max_lines_to_read = $ENV{NOW_COMPLETION_HISTORY} || 1000;
     my $max_choices = $ENV{NOW_COMPLETION_CHOICES} || 20;
     my $line;
+    if (!$opts{resume} && -f $opts{projects}) {
+      my $projects = parseProjects($opts{projects});
+      for (flat(values %{projectsToTasks($projects)})) {
+	if (/^($words($word.*))/) {
+	  next if any { /^\s*$1\s*$/ } @{$opts{breakword}};
+	  my $result = $2;
+	  $result =~ s/^\s+|\s+$//g;
+	  say $result;
+	} } }
+    my $file = File::ReadBackwards->new( "$opts{f}" ) or 
+      die "can't read .now file ($opts{f}) $!" ;
     while ( defined( $line = $file->readline )) {
       last if $max_lines_to_read-- <= 0;
       if ($line =~ /^\d\d\d\d-\d\d-\d\d[ T]\d\d:\d\d:\d\d ([\d:.]*)\s*($words($word.*))/) {
-	next if grep { /^\s*$2\s*$/ } @{$opts{breakword}};
+	next if any { /^\s*$2\s*$/ } @{$opts{breakword}};
 	next if $opts{resume} && !$1 && !$est_in_words;
 	last if $max_choices-- <= 0;
 	# warn "2 = $2, 3 = $3";
@@ -289,9 +329,27 @@ sub formatLine {
   sprintf("%s %5.2f %5.2f %s", timestamp($t), $et, $est, $task);
 };
 
+sub aref2str($r){
+  return $r? sprintf("[%s,%s]", $$r[0], $$r[1]): "null";
+};
+
+sub addTimeTuples ($t1, $t2) {
+  # say "adding tupples " . aref2str($t1) . " and " . aref2str($t2);
+  return $t1 if !$t2;
+  return $t2 if !$t1;
+  my ($x1, $y1) = @$t1;
+  my ($x2, $y2) = @$t2;
+  my $r = [($x1 || 0) + ($x2 || 0), ($y1 || 0) + ($y2 || 0)];
+  # say "added tupples " . aref2str($t1) . " and " . aref2str($t2) . " = " . aref2str($r) . "\n";
+  return $r;
+};
+
 sub addToTree {
   # add tuples to a tree ($et is a tuple)
   my ($tree, $et, @categories) = @_;
+  # saydebug "addToTree: " . (join ':', @categories) . ": " . (join ', ', @{$et});
+  treeInsert($tree, $et, \@categories, \&addTimeTuples);
+  return;
   # saydebug "addToTree: " . join ', ', @{$et};
   for (@categories) {
     if (exists $tree->{$_}) {$tree = $tree->{$_};}
@@ -355,12 +413,14 @@ sub printHours {
 
 sub formatReportTotal {
   my ($t, $et, $task) = @_;
+  # say "formatReportTotal($t, $et, $task)";
   return "$t " . printHours($et) . "$task";
 };
 
 sub formatReportItem {
   # $t is a string, $et is as printHours expects, $task is a string
   my ($t, $et, $task) = @_;
+  # say "formatReportItem($t, $et, $task)";
   return "$t " . printHours($et) . "$task";
 };
   
@@ -412,6 +472,86 @@ sub printReport {
   say for @output_lines;
 };
 
+sub parseProjects ($projectsFilename){
+  # return hash of project trees, setting __est__ and __done__ where  and a hash of project-list of
+  # estimates, skipping branches that are done.
+  my (%tasks, @stack); # $stack[0] will hold the current tree
+  @stack = (\%tasks, ); # push and pop from the front (shift)
+  open my $projectsFile, '<', "$projectsFilename"
+    or die "Could'nt open projects file $projectsFilename}";
+  while (<$projectsFile>) {
+    if (my ($stars, $done, $task, $est) = /(\*+)( DONE)? (.+?)( \d+[.:]?\d*| \d*[.:]?\d+)?$/) {
+      my $lineLevel = length $stars;
+      # say "stars = $stars, done = $done, task = $task, est = $est, lineLevel = $lineLevel";
+      if ($lineLevel > $#stack+1) { # create a new level of tasks
+	# say "$lineLevel > $#stack+1";
+	while ($lineLevel > $#stack+1) {
+	  my $ref = $stack[0]->{''} || ($stack[0]->{''} = {});
+	  unshift @stack, $ref;
+	}}
+      elsif ($lineLevel < $#stack+1) { # unnest (pop the stack)
+	# say "$lineLevel < $#stack+1";
+	shift @stack while $lineLevel < $#stack+1;
+      }
+      die "parseProjects: ERROR: duplicate projects $task" if ${$stack[0]}{$task};
+      my $ref = $stack[0]->{$task} = {};
+      unshift @stack, $ref;
+      $stack[0]->{__est__} += toHours $est if $est;
+      $stack[0]->{__done__} = 1 if $done;
+      # say Dumper(\%tasks);
+    }}
+  # say Dumper(\%tasks);
+  return \%tasks;
+};
+
+sub projectsToEstimates ($projectsRef, $estimatesRef=undef) {
+  if (!defined $estimatesRef) {
+    my %estimates;
+    $estimates{$_} = projectsToEstimates($projectsRef->{$_}, [])
+      for (keys %$projectsRef);
+    return \%estimates;
+  }
+  return \@{$estimatesRef} if $projectsRef->{__done__};
+  for my $t (keys %$projectsRef) {
+    if ($t eq '__est__') {
+      push @$estimatesRef, $projectsRef->{__est__};
+    }
+    elsif (ref($projectsRef->{$t}) eq 'HASH') {
+      projectsToEstimates(\%{$projectsRef->{$t}}, \@{$estimatesRef});
+    }}
+  return \@{$estimatesRef};
+};
+
+sub projectsToTasks ($projectsRef, $prefix=undef) {
+  if (!defined $prefix) {
+    my %tasks;
+    $tasks{$_} = projectsToTasks(\%{$projectsRef->{$_}}, "$_")
+      for (keys %$projectsRef);
+    return \%tasks;
+  }
+  return [] if $projectsRef->{__done__};
+  my @tasks; 
+  for my $t (keys %$projectsRef) {
+    next if $t eq '__est__';
+    if (ref($projectsRef->{$t}) eq 'HASH') {
+      my @rec = @{projectsToTasks(\%{$projectsRef->{$t}}, "$prefix: $t")};
+      push @tasks, (@rec? @rec: ("$prefix: $t",));
+    }}
+  
+  return @tasks? \@tasks: ["$prefix"];
+};
+
+
+# my $projects = parseProjects(".projects.org");
+
+# say "\n\ncalling projects to estimates";
+# my %estimates = %{projectsToEstimates($projects)};
+# say Dumper(\%estimates);
+# say "\n\ncalling projects to tasks";
+# my %tasks = %{projectsToTasks($projects)};
+# say Dumper(\%tasks);
+# exit(0);
+
 
 sub getVelocities { # get some velocities to simulate with
   # use the n most recent
@@ -435,15 +575,16 @@ sub getVelocities { # get some velocities to simulate with
   return @velocities;
 };
 
-sub simulate {
-  my ($sample, $tries, @estimates) = @_;
-  my @te = map {sprintf("%.2f", $_)} @estimates; # truncated estimates for printing
-  if (@estimates > 1) { 
+sub simulate ($sample, $tries, $estimates, $name=undef){
+  # my ($sample, $tries, @estimates) = @_;
+  my @te = map {sprintf("%.2f", $_)} @$estimates; # truncated estimates for printing
+  print "$name: " if defined $name;
+  if (@$estimates > 1) { 
     say "Simulating tasks of " . join(', ', @te). " = " .
       sum(@te) . " total, percentiles . . . ";
   }
   else {
-    say "Simulating task of $te[0], percentiles . . . ";
+    say  "Simulating task of $te[0], percentiles . . . ";
   }
   my @velocities = getVelocities $sample;
   # say "velocities = " . join ',', @velocities;
@@ -452,7 +593,7 @@ sub simulate {
   my $n = $tries;
   while ($n-- > 0) {
     my $t = 0;
-    for (@estimates) { $t += 1.0 * $_ / $velocities[rand @velocities]; }
+    for (@$estimates) { $t += 1.0 * $_ / $velocities[rand @velocities]; }
     unshift @times, $t;
   }
   say "     5%     15%     25%     35%     45%     55%     65%     75%     85%     95%";
@@ -462,6 +603,18 @@ sub simulate {
   say "(based on $#velocities sample estimates and $tries simulations)";
 };
 
+if ($opts{e}) {
+  die "now: ERROR: Can't estimate project with no project file."
+    if !$opts{projects};
+  my %projects = %{parseProjects($opts{projects})};
+  my %estimates = %{projectsToEstimates(\%projects)};
+  my $notfirst = 0;
+  for my $projectName (keys %estimates) {
+    my @ests = @{$estimates{$projectName}};
+    if ($#ests >= 0) {
+      say "" if $notfirst++;
+      simulate($opts{samples}, $opts{tries}, \@ests, $projectName);
+    } } }
 
 if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
   # say "there are still arguments: " . join ', ', @ARGV;
@@ -519,7 +672,7 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
     # say "all args are numbers - Simulate";
     my @hours = map {toHours $_} @ARGV;
     # say join ', ', @hours;
-    simulate($opts{samples}, $opts{tries}, @hours);
+    simulate($opts{samples}, $opts{tries}, \@hours);
   }
   else {
     # say "NOT all args are numbers - Add a task";
@@ -528,7 +681,7 @@ if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
       say "starting $task";
       if ($task =~ /^([\d.:]+)\s/) { # an estimate was given, simulate
 	my $est = toHours $1;
-	simulate($opts{samples}, $opts{tries}, ( $est, )) if $est;
+	simulate($opts{samples}, $opts{tries}, [ $est, ]) if $est;
       }
     }
     open(my $fh, '>>', $opts{f}) or die "Could not open file '$opts{f}' $!";
@@ -704,6 +857,8 @@ sample [options] [file ...]
    -t 5              show 5 tosks
    -d 5              show 5 days
    -w 5              show 5 weeks
+   -e                estimate projects from project file
+   --projects myfile use myfile as projects file
    -r task           resume from an interuption
    --resume task     resume from an interuption
    --DEBUG           show settings
