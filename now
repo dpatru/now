@@ -184,6 +184,11 @@ sub myGetOptions {
   return $success;
 }; # end myGetOptions
 
+sub bashq ($str) {
+  $str =~ s/(['"])/\\$1/g;
+  return $str;
+};
+
 sub bash_complete {
   # This is called when this script is used to for bash
   # autocompletion.  It takes as its arguments the arguments passed to
@@ -212,8 +217,8 @@ sub bash_complete {
   }
   elsif ($word eq "-") { say for @dash_options; }
   elsif ($word eq "--") { say for @ddash_options; }
-  elsif ($word =~ /^--/) { say for any { /$word/ } @ddash_options; }
-  elsif ($word =~ /^-/) { say for any { /$word/ } @dash_options; }
+  elsif ($word =~ /^--/) { say for grep { /$word/ } @ddash_options; }
+  elsif ($word =~ /^-/) { say for grep { /$word/ } @dash_options; }
   else { # show tasks
     my $argv = $ENV{COMP_LINE};
     $argv =~ s/^\s*\w+\s*//; # strip first argument (program name)
@@ -234,7 +239,7 @@ sub bash_complete {
 	  next if any { /^\s*$1\s*$/ } @{$opts{breakword}};
 	  my $result = $2;
 	  $result =~ s/^\s+|\s+$//g;
-	  say $result;
+	  say bashq($result);
 	} }
       return;
     }
@@ -852,7 +857,9 @@ B<now -r a>            # Resume task a.
 
 B<now -r 5 a>          # Resume task a, changing estimated time to 5hrs.
 
-B<now -e>              # Simulate the projects in the project file.
+B<now -e [project]     # Simulate the projects in the project file.
+
+B<now -p ...>          # Autocomplete from project file.
 
 =head1 SYNOPSIS
 
