@@ -63,10 +63,10 @@ sub myGetOptions {
       'h|?', 'help|man', 'version', 'verbose|v',
       'hours', 'minutes', 'hours-minutes',
       'pretty', 'ugly',
-      'projects|p=s',
+      'projects=s',
       'silent|s', 'nobreak', 'breakword=s@',
       'estimates', 'noestimates',
-      'e',
+      'e', 'p',
       'sunday', 'monday',
       'DEBUG', 'NODEBUG',
       'samples=i', 'tries=i',
@@ -204,7 +204,8 @@ sub bash_complete {
   my @dash_options =  ( "-d", "-w", "-y", "-f", "-h" );
   my @ddash_options = ( "--help", "--verbose", "--minutes",
 			"--hours-minutes", "--samples", "--tries" );
-  if ($prev_word =~/-\w*f$/) { # trying to set the nowfile
+  if ($prev_word =~/-\w*f$/ || $prev_word =~ /^--projects$/) {
+    # trying to set the nowfile
     say for glob "'$word*'";
   }
   elsif ($word eq "-") { say for @dash_options; }
@@ -224,7 +225,7 @@ sub bash_complete {
     my $max_lines_to_read = $ENV{NOW_COMPLETION_HISTORY} || 1000;
     my $max_choices = $ENV{NOW_COMPLETION_CHOICES} || 20;
     my $line;
-    if (!$opts{resume} && -f $opts{projects}) {
+    if (!$opts{resume} && -f $opts{projects} && ($opts{p} || $opts{e})) {
       my $projects = parseProjects($opts{projects});
       for (flat(values %{projectsToTasks($projects)})) {
 	if (/^($words($word.*))/) {
@@ -232,7 +233,9 @@ sub bash_complete {
 	  my $result = $2;
 	  $result =~ s/^\s+|\s+$//g;
 	  say $result;
-	} } }
+	} }
+      return;
+    }
     my $file = File::ReadBackwards->new( "$opts{f}" ) or 
       die "can't read .now file ($opts{f}) $!" ;
     while ( defined( $line = $file->readline )) {
@@ -603,20 +606,35 @@ sub simulate ($sample, $tries, $estimates, $name=undef){
   say "(based on $#velocities sample estimates and $tries simulations)";
 };
 
-if ($opts{e}) {
+if ($opts{e}) { # simulate project
   die "now: ERROR: Can't estimate project with no project file."
     if !$opts{projects};
+  my $line = join ' ', @ARGV;
   my %projects = %{parseProjects($opts{projects})};
   my %estimates = %{projectsToEstimates(\%projects)};
-  my $notfirst = 0;
-  for my $projectName (keys %estimates) {
-    my @ests = @{$estimates{$projectName}};
-    if ($#ests >= 0) {
-      say "" if $notfirst++;
-      simulate($opts{samples}, $opts{tries}, \@ests, $projectName);
-    } } }
+  if (! %projects) {
+    say STDERR "now: no projects in project file $opts{projects}";
+  }
+  elsif (! %estimates ) {
+    say STDERR "now: no projects to estimate";
+  }
+  elsif (! any { $#{$_} >= 0 } values(%estimates)) {
+    say STDERR "now: no projects can be estimated";
+  }
+  else {
+    my $notfirst = 0;
+    for my $projectName (keys %estimates) {
+      next if (!($projectName =~ /^$line/));
+      my @ests = @{$estimates{$projectName}};
+      next if !@ests;
+      if ($#ests >= 0) {
+	say "" if $notfirst++;
+	simulate($opts{samples}, $opts{tries}, \@ests, $projectName);
+      } }
+    say STDERR "no estimatable projects match $line" if $notfirst == 0;
+  } }
 
-if (@ARGV > 0) { # option parser remove options from @ARGV, check what's left
+if (@ARGV > 0 && !$opts{e}) { # option parser remove options from @ARGV, check what's left
   # say "there are still arguments: " . join ', ', @ARGV;
   if ($opts{resume}){
     say "Resuming an interupted task . . .";
