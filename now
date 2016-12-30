@@ -201,15 +201,17 @@ sub bash_complete {
 
   my($command, $word, $prev_word) = @_;
   # say "0000argv = $command, $word, $prev_word";
-  my @dash_options =  ( "-d", "-w", "-y", "-f", "-h" );
+  my @dash_options =  ( "-d", "-w", "-y", "-f", "-h", "-e", "-p",);
   my @ddash_options = ( "--help", "--verbose", "--minutes",
-			"--hours-minutes", "--samples", "--tries" );
+			"--hours-minutes", "--samples", "--tries",
+			"--projects",
+		      );
   if ($prev_word =~/-\w*f$/ || $prev_word =~ /^--projects$/) {
     # trying to set the nowfile
     say for glob "'$word*'";
   }
   elsif ($word eq "-") { say for @dash_options; }
-  elsif ($word eq "--") { say @ddash_options; }
+  elsif ($word eq "--") { say for @ddash_options; }
   elsif ($word =~ /^--/) { say for any { /$word/ } @ddash_options; }
   elsif ($word =~ /^-/) { say for any { /$word/ } @dash_options; }
   else { # show tasks
@@ -965,7 +967,11 @@ variable. By default, projects files are located at
 
 =item B<-e>
 
-Estimate how long each project in the project file will take.
+Estimate how long each project in the project file will take. If a project is given, only projects that match will be estimated.
+
+=item B<-p>
+
+Autocomplete from project file and not from now file.
 
 =item B<--resume task, -r task>
 
