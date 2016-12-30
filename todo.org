@@ -1,6 +1,63 @@
 * now todo list
 
-** interuptions
+** output reports in orgmode format
+ - Advantage: could be captured and manipulated with orgmode's collapsing functions.
+ - Could be in the same format as projects.
+
+** DONE simulating when adding a task with an estimate 
+
+It might be a good idea to simulate when adding a task with an estimate, to see the range of possible time for completion. It might help give a gaming feel.
+
+** What we should be estimating:
+ - how long each task takes
+ - how many hours in a day
+
+Joel Spolsky's article on onvidence-based scheduling (https://www.joelonsoftware.com/2007/10/26/evidence-based-scheduling/) 
+
+It seems to me that there are two useful places to estimate: 1) at the task level, to imporve one's own estimating, and 2) at the project level to predict when a proposed project will finish.
+
+And the two are not necessarily related. The now file, at least the way it's conceived of currently, has no concept of a long-term project, that a project is completed. There are just individual tasks with line estimates. 
+
+I think we could do this with an additional project file. Projects could be listed hierachically, and estimates given for each subtask. Then the .now file could be scanned for actual times only and velocities could be computed using estimates in the project files. 
+
+How do we know that projects are done? They can be marked as such. Spolsky has the idea that debugging be charged back to the original projects. This is compatible with marking projects as done: marking a project as done means that it is available for velocities. But time spent can still be computed dynamically.
+
+** implement projects
+*** Use -p and -e flags to auto complete from projects. 
+-p should just auto complete from projects.
+-e should do what -p does, but also estimate the project.
+If a project is given along with the -e flag, that project should be estimated.
+*** DONE switch indicating project estimation 0:10
+*** DONE design project format 0:10
+Org mode could be used for project formats.
+
+
+*** DONE what happens when estimating projects? 0:30
+The goal of project estimation is to give an end date range for a project.
+Let's not overthink this. So given a project in the form of project names and subtasks with estimates, run simulations for all the estimates in each project and print the distribution for each project. 
+
+There are several ways we can treat projects:
+
+**** Projects are labeled simulations
+
+Where should we get the velocities? from the .now file. This is where you have actual proven data.
+
+Subtasks or projects that are marked DONE will not be used for estimating. 
+
+In this view, projects are just labeled simulations. Estimates in a project are just used for simulation.
+
+**** Projects are real
+
+If you want a real (long-lived) projects file, we can use the projects file for both auto-completion and to calculate actual times for each subtask. 
+
+This complicates things in that the project hierarchy in the .now file may not match the hierarchy in the .projects file. It seems a little contrary to the spirit of `now` to make project files real in the sense of matching tasks in .now.
+
+But the idea of using project files for auto-completion is a good one and could be easily adopted. 
+
+
+*** DONE implement functionality 1
+
+** DONE interuptions
 
 Interuptions are common. How should they be handled?
 
