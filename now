@@ -8,10 +8,10 @@ use Data::Dumper;
 use File::HomeDir;
 use Time::Seconds;
 use Scalar::Util qw(looks_like_number);
-use List::Util qw(sum any);
+use List::Util qw(sum);
 use Carp::Assert qw(assert should);
 use Text::ParseWords qw(shellwords);
-use List::MoreUtils qw(pairwise);
+use List::MoreUtils qw(pairwise any all);
 use File::Basename; # exposes basename and dirname
 use List::Flatten; # flat
 use feature 'signatures';
@@ -61,7 +61,7 @@ sub myGetOptions {
   my $success = GetOptionsFromArray
     ( $argv, \%opts,
       'h|?', 'help|man', 'version', 'verbose|v',
-      'hours', 'minutes', 'hours-minutes',
+      'time-format=s@',
       'pretty', 'ugly',
       'projects=s',
       'silent|s', 'nobreak', 'breakword=s@',
@@ -151,36 +151,39 @@ sub myGetOptions {
   setFileOption("Projectfile", "projects", "NOW_PROJECTS",
 		( File::HomeDir->my_home . "/Dropbox/.projects.org",
 		  File::HomeDir->my_home . "/.projects.org" ));
-  sub setBreakword {
-    # not a normal option because breakwords are an array and they
-    # also get split on commas.
-    my @breakwords;
-    if ($opts{breakword}) { 
-      unshift @breakwords, split / *, */ for @{$opts{breakword}};
-      $opts{breakword} = \@breakwords;
-      saydebug @breakwords . " breakwords from command line: " . join ',', @breakwords;
-      return;
+
+
+  sub setArrayOption {
+    my ($name, $option, $env, $default, @whitelist) = @_;
+    # not a normal option because breakwords is an array and it
+    # also gets split on commas.
+    my @options;
+    if ($opts{$option}) { 
+      unshift @options, split / *, */ for @{$opts{$option}};
+      $opts{$option} = \@options;
+      saydebug "$name set from command line: " .
+	join ',', @options;
     }
-    elsif (exists $ENV{NOW_BREAK_WORD}) {
-      if ($ENV{NOW_BREAK_WORD}) {
-	@breakwords = split / *, */, $ENV{NOW_BREAK_WORD};
-	$opts{breakword} = \@breakwords;
-	saydebug @breakwords . " breakwords from environment: " . join ',', @breakwords;
-	return;
-      }
-      else {
-	saydebug @breakwords . " breakwords from environment.";
-      }
+    elsif ($ENV{$env}) {
+      @options = split / *, */, $ENV{$env};
+      $opts{$option} = \@options;
+      saydebug "$name set from environment: " . join ',', @options;
     }
     else {
-      @breakwords = ( "break", "stop" );
-      $opts{breakword} = \@breakwords;
-      saydebug @breakwords . " breakwords as default: " . join ',', @breakwords;
-      return;
+      @options = split / *, */, $default;
+      $opts{$option} = \@options;
+      saydebug "$name set by default: " . join ', ', @options;
     }
+    if (@whitelist) {
+      # say "setArrayOption: checking whitelist...";
+      for my $o (@options) {
+	die "$name ERROR: $o is not an acceptable value (" .
+	  join(', ', @whitelist) . ")" if all {$o ne $_} @whitelist;
+      }}
   };
-  setBreakword;
-
+  setArrayOption("breakword", "breakword", "NOW_BREAK_WORD", "break,stop");
+  setArrayOption("time-format", "time-format", "NOW_TIME_FORMAT", "h",
+		 "h", "m", "hm", "hms");
   return $success;
 }; # end myGetOptions
 
@@ -207,8 +210,8 @@ sub bash_complete {
   my($command, $word, $prev_word) = @_;
   # say "0000argv = $command, $word, $prev_word";
   my @dash_options =  ( "-d", "-w", "-y", "-f", "-h", "-e", "-p",);
-  my @ddash_options = ( "--help", "--verbose", "--minutes",
-			"--hours-minutes", "--samples", "--tries",
+  my @ddash_options = ( "--help", "--verbose",
+			"--time-format", "--samples", "--tries",
 			"--projects",
 		      );
   if ($prev_word =~/-\w*f$/ || $prev_word =~ /^--projects$/) {
@@ -373,51 +376,103 @@ sub addToTree {
   else { $tree->{''} = $et; } 
 };
 
+sub h2hm ($hours) {
+  my $h = int $hours;
+  my $m = ($hours - $h)*60.0;
+  return ($h, $m);
+};
+sub h2hms ($hours) {
+  my $h = int $hours;
+  my $min = ($hours - $h)*60.0;
+  my $m = int $min;
+  my $s = int (($min - $m) * 60);
+  return ($h, $m, $s);
+};
 my $hourDigits = 8;
+my ($TimeFormat, $Hours, $HoursMinutes, $HoursMinutesSeconds, $Minutes);
+sub setTimeFormat { # cache time format since it doesn't change
+  # say "setting time format . . . ";
+  $Hours = grep /^h$/, @{$opts{'time-format'}};
+  $HoursMinutes = grep /^hm$/, @{$opts{'time-format'}};
+  $HoursMinutesSeconds = grep /^hms$/, @{$opts{'time-format'}};
+  $Minutes = grep /^m$/, @{$opts{'time-format'}};
+  $TimeFormat = 1;
+  say "setTimeFormat: Hours = $Hours, HoursMinutes = $HoursMinutes, " .
+    "HoursMinutesSeconds = $HoursMinutesSeconds, " .
+    "Minutes = $Minutes";
+};
 sub printHours {
+  setTimeFormat if (!$TimeFormat);
   my $arg = shift @_;
   my ($hours, $est)= @{$arg};
   my $output = '';
-  if ($opts{"hours-minutes"}) {
-    $output .= sprintf("%${hourDigits}d:%02d", int($hours), ($hours - int($hours))*60.0);
-    if ($opts{estimates}) {
-      if ($est) {
-	$output .= sprintf("/%${hourDigits}d:%02d", int($est), ($est - int($est))*60.0);
+
+  # say "printHours: " . Dumper($arg);
+  for my $format (@{$opts{'time-format'}}) {
+    if ($format eq 'hm'){
+      my ($h, $m) = h2hm $hours;
+      $output .= sprintf("%${hourDigits}d:%02d", $h, $m);
+      if ($opts{estimates}) {
+	if ($est) {
+	  my ($h, $m) = h2hm $est;
+	  $output .= sprintf("/%${hourDigits}d:%02d", $h, $m);
+	}
+	else {
+	  my $f = $hourDigits + 3;
+	  $output .= sprintf("/%${f}s", "");
+	}
       }
-      else {
-	my $f = $hourDigits + 3;
-	$output .= sprintf("/%${f}s", "");
-      }
+      $output .= " ";
+      # say "printHours: hm: output = $output";
     }
-    $output .= " ";
-    
-  }
-  if ($opts{minutes}) {
-    my $minuteDigits = $hourDigits + 2;
-    my $m = $hours * 60.0;
-    $output .= sprintf("%${minuteDigits}.0fm", $hours * 60.0);
-    if ($opts{estimates}) {
-      if ($est) {
-	$output .= sprintf("/%${minuteDigits}.0fm", $est * 60.0);
+    elsif ($format eq 'hms') {
+      my ($h, $m, $s) = h2hms $hours;
+      $output .= sprintf("%${hourDigits}d:%02d:%02d", $h, $m, $s);
+      if ($opts{estimates}) {
+	if ($est) {
+	  my ($h, $m, $s) = h2hms $est;
+	  $output .= sprintf("/%${hourDigits}d:%02d:%02d", $h, $m, $s);
+	}
+	else {
+	  my $f = $hourDigits + 5;
+	  $output .= sprintf("/%${f}s", "");
+	}
       }
-      else {
-	$output .= sprintf("/%${minuteDigits}s ", "");
-      }
+      $output .= " ";
+      # say "printHours: hms: output = $output";
     }
-    $output .= " ";
-  }
-  if ($opts{hours} or !$output) {
-    my $dhourDigits = $hourDigits + 3;
-    $output .= sprintf("%${dhourDigits}.2fh", $hours);
-    if ($opts{estimates}) {
-      if ($est) {
-	$output .= sprintf("/%${dhourDigits}.2fh", $est);
+    elsif ($format eq 'm'){
+      my $minuteDigits = $hourDigits + 2;
+      my $m = $hours * 60.0;
+      $output .= sprintf("%${minuteDigits}.0fm", $hours * 60.0);
+      if ($opts{estimates}) {
+	if ($est) {
+	  $output .= sprintf("/%${minuteDigits}.0fm", $est * 60.0);
+	}
+	else {
+	  $output .= sprintf("/%${minuteDigits}s ", "");
+	}
       }
-      else {
-	$output .= sprintf("/%${dhourDigits}s ", "");
-      }
+      $output .= " ";
+      # say "printHours: hms: output = $output";
     }
-    $output .= " ";
+    elsif ($format eq 'h'){
+      my $dhourDigits = $hourDigits + 3;
+      $output .= sprintf("%${dhourDigits}.2fh", $hours);
+      if ($opts{estimates}) {
+	if ($est) {
+	  $output .= sprintf("/%${dhourDigits}.2fh", $est);
+	}
+	else {
+	  $output .= sprintf("/%${dhourDigits}s ", "");
+	}
+      }
+      $output .= " ";
+      # say "printHours: hms: output = $output";
+    }
+    else {
+      die "ERROR: unknown time-format option = " . Dumper($opts{"time-format"});
+    }
   }
   return $output;
 }; # end of printHours
@@ -597,9 +652,14 @@ sub simulate ($sample, $tries, $estimates, $name=undef){
   else {
     say  "Simulating task of $te[0], percentiles . . . ";
   }
-  my @velocities = getVelocities $sample;
+  my @velocities = grep { looks_like_number $_ and $_ > 0 } getVelocities $sample;
+  chomp @velocities;
+  if (@velocities <= 0) {
+    say "now: Can't simulate because there are no prior tasks with estimates.";
+    return;
+  }
+      
   # say "velocities = " . join ',', @velocities;
-  
   my @times;
   my $n = $tries;
   while ($n-- > 0) {
@@ -611,7 +671,7 @@ sub simulate ($sample, $tries, $estimates, $name=undef){
   my $step = $tries / 10.0;
   my @stimes = sort { $a <=> $b } @times;
   say join ' ', map { sprintf("%7.2f", $stimes[$step * ($_ + .5)]) } (0..9);
-  say "(based on $#velocities sample estimates and $tries simulations)";
+  say "(based on " . ($#velocities+1) . " sample estimates and $tries simulations)";
 };
 
 if ($opts{e}) { # simulate project
