@@ -389,24 +389,10 @@ sub h2hms ($hours) {
   return ($h, $m, $s);
 };
 my $hourDigits = 8;
-my ($TimeFormat, $Hours, $HoursMinutes, $HoursMinutesSeconds, $Minutes);
-sub setTimeFormat { # cache time format since it doesn't change
-  # say "setting time format . . . ";
-  $Hours = grep /^h$/, @{$opts{'time-format'}};
-  $HoursMinutes = grep /^hm$/, @{$opts{'time-format'}};
-  $HoursMinutesSeconds = grep /^hms$/, @{$opts{'time-format'}};
-  $Minutes = grep /^m$/, @{$opts{'time-format'}};
-  $TimeFormat = 1;
-  say "setTimeFormat: Hours = $Hours, HoursMinutes = $HoursMinutes, " .
-    "HoursMinutesSeconds = $HoursMinutesSeconds, " .
-    "Minutes = $Minutes";
-};
 sub printHours {
-  setTimeFormat if (!$TimeFormat);
   my $arg = shift @_;
   my ($hours, $est)= @{$arg};
   my $output = '';
-
   # say "printHours: " . Dumper($arg);
   for my $format (@{$opts{'time-format'}}) {
     if ($format eq 'hm'){
