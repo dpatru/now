@@ -917,9 +917,9 @@ sample [options] [file ...]
    --help | --man    full documentation
    --version         print version and exit
    --verbose | -v    print processed lines before reports
-   --hours           print report in hours (default)
-   --minutes         print report in minutes instead of hours
-   --hours-minutes   print report in hours and minutes
+   --time-format h   print report in hours (default)
+   --time-format m   print report in minutes instead of hours
+   --time-format hm  print report in hours and minutes
    --nobreak         do not skip breaks
    --breakword stop  use "stop" as the breakword instead of "break".
    --estimates       show estimates when reporting
@@ -1185,6 +1185,10 @@ export NOW_SILENT=1
 # include estimates in reports.
 
 export NOW_ESTIMATES=1
+
+# set the time format for reports
+
+export NOW_TIME_FORMAT=hm
 
 # Start weeks on Sunday.
 
