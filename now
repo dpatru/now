@@ -1233,6 +1233,10 @@ export NOW_PROJECTS=~/myprojects.org
 =back
 
 
+=head1 AUTHOR
+
+Daniel Patru, dpatru@gmail.com, github.com/dpatru.
+
 
 
 =cut
