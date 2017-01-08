@@ -111,8 +111,12 @@ sub myGetOptions {
     my $setter;
     if ( exists $opts{$option} ) {
       $setter = "commandline";
-      die "now: ERROR: cannot set nowfile to empty string."
-	if  $option eq "f";
+      if ($option eq 'f') {
+	die "now: ERROR: cannot set nowfile to empty string."
+	  if  $opts{$option} eq '';
+	die "now: ERROR: cannot set nowfile to nonexistent file."
+	  if !-f $opts{$option};
+      }
     }
     elsif ( -e $ENV{$env} ) {
       $setter = "environment";
