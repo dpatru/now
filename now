@@ -1174,6 +1174,10 @@ a sample ~/.profile.
 
 =over 2
 
+# set completion.
+
+complete -C now now
+
 # set the .now file to ~/mydir/.now
 
 export NOW_qFILE=~/mydir/.now
