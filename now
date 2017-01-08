@@ -424,7 +424,7 @@ sub printHours {
 	  $output .= sprintf("/%${hourDigits}d:%02d:%02d", $h, $m, $s);
 	}
 	else {
-	  my $f = $hourDigits + 5;
+	  my $f = $hourDigits + 6;
 	  $output .= sprintf("/%${f}s", "");
 	}
       }
