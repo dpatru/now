@@ -192,9 +192,9 @@ The time format can also be set with the environment variable
          0.02h/       task two 
          0.02h/ 0.17h ten minute task
 
-Multiple formats can be shown by joining the formats with commas.
+Multiple formats can be shown by joining the formats with commas. 
 
-	 bash-4.3$ now -d 1 --time-format hms,m
+	 bash-4.3$ now -d 1 --time-format hms,m 
 		 
 		 2017-01-06  0:08:01/ 1:09:59    8m/  70m (total)
      0:01:00/ 0:30:00    1m/  30m half hour task
@@ -228,11 +228,11 @@ By default, breaks are not shown. They can be shown with the `--nobreak` option.
          0:01/      task two
          0:01/ 0:10 ten minute task
 
-Reports can also be generated without showing estimates using the
---noestimates flag.
+Reports can also be generated without showing estimates using the 
+--noestimates flag. 
 
 
-    bash-4.3$ now --noestimates -d 1
+    bash-4.3$ now --noestimates -d 1 
     
     2017-01-06  0:08 (total)
          0:01 half hour task
