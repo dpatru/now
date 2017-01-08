@@ -10,6 +10,62 @@ License
 
 `now` is MIT licensed.
 
+Motivation 
+----------
+
+`now` was born out of a need to record time for time sheets which 
+required daily totals. I wanted something lightweight and editable and was inpired 
+by a Hacker News [comment](<https://news.ycombinator.com/item?id=7411120>). 
+
+I added estimates to become a better estimator. I often 
+underestimate how long programming projects would last and this would 
+lead to overscheduling and frustration. `now` helps by making it easy to 
+track how long projects take compared to my initial estimates. It also 
+can create realistic estimates based on my past performance. 
+
+Features and benefits 
+---------------------
+
+now is a command-line tool that stores its data in a human-readable 
+text file. Benefits include:
+
+- Fast: `now` is fast to use. Simply type what you're working on when 
+  you start. If you're working on a previous task or on a task from 
+  your project file, you can even use auto-completion. 
+
+- Fast: `now` also runs fast. 
+
+- Understandable: `now` stores data in an understandable text file. If 
+  you want to correct it, just use a text editor. 
+
+- Flexible: `now` accepts time estimates in hours or hours:minutes 
+  format. Also, the output can be reported in different formats and 
+  different aggregation periods. 
+
+
+Installation 
+------------
+
+To install, download file `now` from http://github.com/dpatru/now into 
+a directory in your `PATH`. Set any desired environment variables in 
+your `.profile` or `.bashrc` files. For bash completion, put the 
+following line in your `.profile` file:
+
+    complete -C now now 
+
+`now` is written in perl. You may need to install some modules from 
+CPAN to get it to run. Just use the following command:
+
+    cpan install Getopt::Long Pod::Usage Time::Piece Data::Dumper 
+    File::HomeDir Time::Seconds Scalar::Util List::Util Carp::Assert 
+    Text::ParseWords List::MoreUtils File::Basename List::Flatten 
+
+If that doesn't work, you may have to run it as sudo:
+
+    sudo cpan install Getopt::Long Pod::Usage Time::Piece Data::Dumper 
+    File::HomeDir Time::Seconds Scalar::Util List::Util Carp::Assert 
+    Text::ParseWords List::MoreUtils File::Basename List::Flatten 
+
 
 Tutorial
 --------
@@ -603,64 +659,6 @@ Use the `--help` option to get more extensive help.
 
     
     
-Motivation
-----------
-
-`now` was born out of a need to record time for time sheets which
-required daily totals. I wanted something lightweight and editable and was inpired
-by a Hacker News [comment](<https://news.ycombinator.com/item?id=7411120>).
-
-I added estimates to become a better estimator. I often
-underestimate how long programming projects would last and this would
-lead to overscheduling and frustration. `now` helps by making it easy to
-track how long projects take compared to my initial estimates. It also
-can create realistic estimates based on my past performance.
-
-Features and benefits
----------------------
-
-now is a command-line tool that stores its data in a human-readable
-text file. Benefits include:
-
-- Fast: `now` is fast to use. Simply type what you're working on when
-  you start. If you're working on a previous task or on a task from
-  your project file, you can even use auto-completion.
-
-- Fast: `now` also runs fast.
-
-- Understandable: `now` stores data in an understandable text file. If
-  you want to correct it, just use a text editor.
-
-- Flexible: `now` accepts time estimates in hours or hours:minutes
-  format. Also, the output can be reported in different formats and
-  different aggregation periods.
-
-
-Installation
-------------
-
-To install, download file `now` from http://github.com/dpatru/now into
-a directory in your `PATH`. Set any desired environment variables in
-your `.profile` or `.bashrc` files. For bash completion, put the
-following line in your `.profile` file:
-
-    complete -C now now
-
-`now` is written in perl. You may need to install some modules from
-CPAN to get it to run. Just use the following command:
-
-    cpan install Getopt::Long Pod::Usage Time::Piece Data::Dumper 
-    File::HomeDir Time::Seconds Scalar::Util List::Util Carp::Assert 
-    Text::ParseWords List::MoreUtils File::Basename List::Flatten 
-
-If that doesn't work, you may have to run it as sudo:
-
-    sudo cpan install Getopt::Long Pod::Usage Time::Piece Data::Dumper 
-    File::HomeDir Time::Seconds Scalar::Util List::Util Carp::Assert 
-    Text::ParseWords List::MoreUtils File::Basename List::Flatten 
-
-
-
 Feedback
 --------
 
