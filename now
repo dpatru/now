@@ -332,7 +332,7 @@ sub parseLine {
   if (my($timestamp, $est, $task) = $line =~ /(\d\d\d\d-\d\d-\d\d \d\d?:\d\d:\d\d)\s*(\d+.?\d*|\.\d+|\d*:\d+:?\d*)?\s+(.*)/) {
     my $t1 = parseTimestamp($timestamp);
     if ($t1) {
-      my $et = sprintf("%.2f", ($t2 - $t1)/3600.0);
+      my $et = sprintf("%.6f", ($t2 - $t1)/3600.0);
       $est = toHours $est;
       my @result = ($t1, $et, $est, $task);
       # saydebug "parseline(" . timestamp($t2) . ", $line)->(". (join ', ', @result) . ")";
