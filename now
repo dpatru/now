@@ -97,7 +97,7 @@ sub myGetOptions {
   
   setOption("DEBUG", "NODEBUG", "NOW_DEBUG", 0);
   setOption("silent", "n/a", "NOW_SILENT", 0);
-  setOption("estimates", "noestimates", "NOW_ESTIMATES", 0);
+  setOption("estimates", "noestimates", "NOW_ESTIMATES", 1);
   setOption("verbose", "noverbose", "NOW_VERBOSE", 0);
   setOption("sunday", "monday", "NOW_SUNDAY", 0);
   setOption("samples", "n/a", "NOW_SAMPLES", 50);
