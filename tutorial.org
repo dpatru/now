@@ -1,0 +1,53 @@
+* now tutorial
+
+** recording time
+
+*** simple
+$ now a simple task 
+
+*** estimates 
+$ now :10 a ten minute task 
+
+*** hierarchy 
+$ now :10 my project: ten minute task 
+
+*** breaks 
+$ now break 
+
+*** text file
+$ tail .now
+<timestamp> a simple task 
+<timestamp> :10 a ten minute task 
+<timestamp> :10 my project: ten minute task 
+<timestamp> break 
+
+
+** reporting
+
+*** tasks, weekly, yearly
+Three report periods: individual tasks (-t), weekly (-w), yearly (-y).
+
+*** options: estimates, hour-minutes, breaks
+
+**** show estimates
+
+**** display in hour-minutes
+
+**** show breaks
+
+
+** simulating
+
+*** inline arguments
+
+*** projects
+- org-mode format
+- project specifications
+
+
+** customization
+
+See man page. Many options are configurable with enviornment variables.
+
+
+
