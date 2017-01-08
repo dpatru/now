@@ -64,7 +64,7 @@ sub myGetOptions {
       'time-format=s@',
       'pretty', 'ugly',
       'projects=s',
-      'silent|s', 'nobreak', 'breakword=s@',
+      'silent|s', 'nobreak|nobreaks', 'breakword=s@',
       'estimates', 'noestimates',
       'e', 'p',
       'sunday', 'monday',
