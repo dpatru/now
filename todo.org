@@ -1,4 +1,5 @@
 * now todo list
+** DONE add test framework
 
 ** output reports in orgmode format
  - Advantage: could be captured and manipulated with orgmode's collapsing functions.
