@@ -1,5 +1,5 @@
-now  - commandline program tracking and estimating time
-=======================================================
+now  - command-line program for tracking and estimating time
+============================================================
 
 `now` is a command-line program that helps track time, generate
 reports, and estimate. Tasks are stored in a human-readable text file
