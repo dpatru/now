@@ -259,7 +259,7 @@ the arguments look like numbers or times, then `now` will simulate.
     Simulating tasks of 0.08, 0.17 = 0.25 total, percentiles . . . 
          5%     15%     25%     35%     45%     55%     65%     75%     85%     95%
        0.01    0.01    0.01    0.01    0.02    0.02    0.02    0.03    0.03    0.03
-       (based on 4 sample estimates and 1000 simulations)
+    (based on 4 sample estimates and 1000 simulations)
 
 You can also organize your projects in org-mode style with estimates
 appended and `now` can simulate projects using the `-e` option (-e
