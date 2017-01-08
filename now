@@ -908,7 +908,7 @@ B<now -r a>            # Resume task a.
 
 B<now -r 5 a>          # Resume task a, changing estimated time to 5hrs.
 
-B<now -e [project]     # Simulate the projects in the project file.
+B<now -e [project]>    # Simulate the projects in the project file.
 
 B<now -p ...>          # Autocomplete from project file.
 
