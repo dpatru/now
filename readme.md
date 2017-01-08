@@ -46,6 +46,8 @@ text file. Benefits include:
 Installation 
 ------------
 
+I run `now` on a macbook pro. It should also work in linux.
+
 To install, download file `now` from http://github.com/dpatru/now into 
 a directory in your `PATH`. Set any desired environment variables in 
 your `.profile` or `.bashrc` files. For bash completion, put the 
