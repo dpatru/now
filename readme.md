@@ -299,7 +299,7 @@ environment variable.
        0.08    0.11    0.16    0.16    0.17    0.18    0.19    0.25    0.25    0.25
     (based on 4 sample estimates and 1000 simulations)
 
-You can also simplate just a particular project. Auto-completion helps
+You can also simulate just a particular project. Auto-completion helps
 here (when `now` sees the -e option, it completes from the project
 file. 
 
