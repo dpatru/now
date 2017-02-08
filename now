@@ -188,14 +188,23 @@ sub myGetOptions {
   setArrayOption("breakword", "breakword", "NOW_BREAK_WORD", "break,stop");
   setArrayOption("time-format", "time-format", "NOW_TIME_FORMAT", "h",
 		 "h", "m", "hm", "hms");
+  setArrayOption("warningSeconds", "warningSeconds", "NOW_WARNING_SECONDS", "60,0");
   return $success;
 }; # end myGetOptions
 
 sub bashq ($str) {
+  # quote string for bash shell
   $str =~ s/(['"])/\\$1/g;
   return $str;
 };
 
+sub bashqq ($str) {
+  # quote string and spaces for bash shell
+  $str =~ s/(['"])/\\$1/g;
+  $str =~ s/ /\\ /g;
+  return $str;
+};
+  
 sub bash_complete {
   # This is called when this script is used to for bash
   # autocompletion.  It takes as its arguments the arguments passed to
@@ -752,18 +761,31 @@ if (@ARGV > 0 && !$opts{e}) { # option parser remove options from @ARGV, check w
   }
   else {
     # say "NOT all args are numbers - Add a task";
-    my $task = join ' ', @ARGV; $task =~ s/^\s+|\s+$//g;
-    if (!$opts{silent}) {
-      say "starting $task";
-      if ($task =~ /^([\d.:]+)\s/) { # an estimate was given, simulate
-	my $est = toHours $1;
-	simulate($opts{samples}, $opts{tries}, [ $est, ]) if $est;
-      }
-    }
+    my $arg = join ' ', @ARGV;
+    $arg =~ s/^\s+|\s+$//g; # trim spaces
     open(my $fh, '>>', $opts{f}) or die "Could not open file '$opts{f}' $!";
-    say $fh timestamp() . " " . $task;
+    say $fh timestamp() . " " . $arg;
     close $fh;
-    
+    my (undef, $est, $task) = $arg =~ /^(([\d.:]+)\s+)(.+)$/;
+    $est = toHours $est if $est;
+    # my $estimate = $task =~ /^([\d.:]+)\s/;
+    if (!$opts{silent}) {
+      say "starting $arg"; 
+      # if ($task =~ /^([\d.:]+)\s/) { # an estimate was given, simulate
+      simulate($opts{samples}, $opts{tries}, [ $est, ]) if $est;
+    }
+    my $argq = bashqq $arg; # quote the arg for the shell
+    if ($est and $opts{warningSeconds} and `which say`) {
+      my $sameTask = "tail -n1 $opts{f} | grep -q $argq";
+      my $seconds = int(3600 * $est);
+      if ($seconds > 60) {
+	my $oneMinuteLeft = $seconds - 60;
+	system("sleep $oneMinuteLeft && $sameTask && say one minute left &");
+      }
+      my $cmd = "sleep $seconds && $sameTask && say done || say error &";
+      system($cmd);
+      # say "running $opts{command}";
+    }
   }
 }
 
