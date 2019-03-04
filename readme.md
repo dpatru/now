@@ -65,6 +65,13 @@ If that doesn't work, you may have to run it as sudo:
 
     sudo cpan install Getopt::Long Pod::Usage Time::Piece Data::Dumper File::HomeDir Time::Seconds Scalar::Util List::Util Carp::Assert Text::ParseWords List::MoreUtils File::Basename List::Flatten File::ReadBackwards
 
+On my Ubuntu 18.04 installation, I also had to install the perl-doc
+package to see the correct help (now -h). See https://stackoverflow.com/a/48460060/268040
+
+```bash
+sudo apt install perl-doc
+```
+
 
 Tutorial
 --------

@@ -291,8 +291,8 @@ if ($in_bash_completion) { # called to complete
 
 myGetOptions(\@ARGV) or pod2usage(2);
 
-pod2usage(-verbose => 1) if $opts{h};
-pod2usage(-verbose => 2) if $opts{help};
+pod2usage(-verbose => 2) if $opts{h};
+pod2usage(-verbose => 3) if $opts{help}; 
 
 if ($opts{version}) {
   say "This is now version 1. ";
@@ -907,7 +907,14 @@ sub getWeek {
 
 __END__
 
-=head1 now EXAMPLES
+
+=head1 NAME
+
+now - command line time tracker
+
+=head1 SYNOPSIS
+
+now EXAMPLES
 
 B<now prog: docs>      # Add task "prog: docs" to .now file.
 
@@ -933,8 +940,6 @@ B<now -r 5 a>          # Resume task a, changing estimated time to 5hrs.
 B<now -e [project]>    # Simulate the projects in the project file.
 
 B<now -p ...>          # Autocomplete from project file.
-
-=head1 SYNOPSIS
 
 sample [options] [file ...]
 
@@ -1202,7 +1207,7 @@ complete -C now now
 
 # set the .now file to ~/mydir/.now
 
-export NOW_qFILE=~/mydir/.now
+export NOW_FILE=~/mydir/.now
 
 # Treat stop, break, quit, and done as breakwords.
 
@@ -1258,7 +1263,5 @@ export NOW_PROJECTS=~/myprojects.org
 =head1 AUTHOR
 
 Daniel Patru, dpatru@gmail.com, github.com/dpatru.
-
-
 
 =cut
