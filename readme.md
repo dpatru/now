@@ -58,16 +58,12 @@ following line in your `.profile` file:
 `now` is written in perl. You may need to install some modules from 
 CPAN to get it to run. Just use the following command:
 
-    cpan install Getopt::Long Pod::Usage Time::Piece Data::Dumper 
-    File::HomeDir Time::Seconds Scalar::Util List::Util Carp::Assert 
-    Text::ParseWords List::MoreUtils File::Basename List::Flatten File::ReadBackwards
+    cpan install Getopt::Long Pod::Usage Time::Piece Data::Dumper File::HomeDir Time::Seconds Scalar::Util List::Util Carp::Assert Text::ParseWords List::MoreUtils File::Basename List::Flatten File::ReadBackwards
 
 
 If that doesn't work, you may have to run it as sudo:
 
-    sudo cpan install Getopt::Long Pod::Usage Time::Piece Data::Dumper 
-    File::HomeDir Time::Seconds Scalar::Util List::Util Carp::Assert 
-    Text::ParseWords List::MoreUtils File::Basename List::Flatten 
+    sudo cpan install Getopt::Long Pod::Usage Time::Piece Data::Dumper File::HomeDir Time::Seconds Scalar::Util List::Util Carp::Assert Text::ParseWords List::MoreUtils File::Basename List::Flatten File::ReadBackwards
 
 
 Tutorial
